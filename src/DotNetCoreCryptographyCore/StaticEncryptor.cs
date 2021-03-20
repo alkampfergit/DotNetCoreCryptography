@@ -4,7 +4,7 @@ using System.Threading.Tasks;
 
 namespace DotNetCoreCryptographyCore
 {
-    public static class Encryptor
+    public static class StaticEncryptor
     {
         public static async Task EncryptAsync(Stream sourceStream, Stream destinationStream, Aes aes)
         {

@@ -37,7 +37,7 @@ namespace DotNetCoreCryptographyCore.Concrete
         {
             using var sourceMs = new MemoryStream(encryptedKey);
             using var destinationMs = new MemoryStream();
-            await Encryptor.DecryptAsync(sourceMs, destinationMs, _key).ConfigureAwait(false);
+            await StaticEncryptor.DecryptAsync(sourceMs, destinationMs, _key).ConfigureAwait(false);
             return new EncryptionKey(destinationMs.ToArray());
         }
 
@@ -45,7 +45,7 @@ namespace DotNetCoreCryptographyCore.Concrete
         {
             using var destinationMs = new MemoryStream();
             using var sourceMs = new MemoryStream(key.Serialize());
-            await Encryptor.EncryptAsync(sourceMs , destinationMs, _key).ConfigureAwait(false);
+            await StaticEncryptor.EncryptAsync(sourceMs , destinationMs, _key).ConfigureAwait(false);
             return destinationMs.ToArray();
         }
     }

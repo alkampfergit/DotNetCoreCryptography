@@ -7,18 +7,8 @@ using Xunit;
 
 namespace DotNetCoreCryptography.Tests.Core.Concrete
 {
-    public class DeveloperKeyValueStoreTests
+    public abstract class DeveloperKeyValueSpecificTests
     {
-        [Fact]
-        public async Task Is_able_to_encrypt_and_decrypt_a_key()
-        {
-            using var key = new EncryptionKey();
-            var sut = new DevelopKeyValueStore(Path.GetTempPath());
-            var encrypted = await sut.EncryptAsync(key).ConfigureAwait(false);
-            var decrypted = await sut.DecriptAsync(encrypted).ConfigureAwait(false);
-            Assert.Equal(key, decrypted);
-        }
-
         [Fact]
         public async Task Is_able_to_create_folder_if_needed()
         {

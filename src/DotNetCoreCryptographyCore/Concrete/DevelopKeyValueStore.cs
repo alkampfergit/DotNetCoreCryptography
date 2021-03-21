@@ -15,6 +15,8 @@ namespace DotNetCoreCryptographyCore.Concrete
     /// </summary>
     public class DevelopKeyValueStore : IKeyVaultStore
     {
+        public const string DeveloperKeyName = "developerKeyValueStore.key";
+
         private readonly EncryptionKey _key;
 
         public DevelopKeyValueStore(string keyFolder)
@@ -23,7 +25,7 @@ namespace DotNetCoreCryptographyCore.Concrete
             {
                 Directory.CreateDirectory(keyFolder);
             }
-            var keyName = Path.Combine(keyFolder, "developerKeyValueStore.key");
+            var keyName = Path.Combine(keyFolder, DeveloperKeyName);
             if (!File.Exists(keyName))
             {
                 using var key = new EncryptionKey();

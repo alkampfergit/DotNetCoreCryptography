@@ -5,12 +5,10 @@ namespace DotNetCoreCryptographyCore
 {
     public static class EncryptionUtils
     {
-        public const Int32 saltSize = 8;
-
-        public static byte[] GenerateRandomSalt()
+        public static byte[] GenerateRandomByteArray(int size)
         {
             using var csp = new RNGCryptoServiceProvider();
-            byte[] salt = new byte[saltSize];
+            byte[] salt = new byte[size];
             csp.GetBytes(salt);
             return salt;
         }

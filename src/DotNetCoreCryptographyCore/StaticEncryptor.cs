@@ -15,7 +15,7 @@ namespace DotNetCoreCryptographyCore
 
         public static async Task EncryptAsync(Stream sourceStream, Stream destinationStream, EncryptionKey key)
         {
-            using var encryptor = key.CreateEncryptor();
+            using var encryptor = key.CreateEncryptor(destinationStream);
             using CryptoStream csEncrypt = new(destinationStream, encryptor, CryptoStreamMode.Write);
             await sourceStream.CopyToAsync(csEncrypt).ConfigureAwait(false);
         }
@@ -29,7 +29,7 @@ namespace DotNetCoreCryptographyCore
 
         public static async Task DecryptAsync(Stream encryptedStream, Stream destinationStream, EncryptionKey key)
         {
-            using var decryptor = key.CreateDecryptor();
+            using var decryptor = key.CreateDecryptor(encryptedStream);
             using CryptoStream csDecrypt = new(encryptedStream, decryptor, CryptoStreamMode.Read);
             await csDecrypt.CopyToAsync(destinationStream).ConfigureAwait(false);
         }
@@ -51,7 +51,7 @@ namespace DotNetCoreCryptographyCore
         {
             using var sourceStream = new MemoryStream(data);
             using var destinationStream = new MemoryStream(data.Length);
-            await AesEncryptWithPasswordAsync(sourceStream, destinationStream, password);
+            await AesEncryptWithPasswordAsync(sourceStream, destinationStream, password).ConfigureAwait(false);
             return destinationStream.ToArray();
         }
 
@@ -69,7 +69,7 @@ namespace DotNetCoreCryptographyCore
         {
             using var sourceStream = new MemoryStream(encryptedData);
             using var destinationStream = new MemoryStream(encryptedData.Length);
-            await AesDecryptWithPasswordAsync(sourceStream, destinationStream, password);
+            await AesDecryptWithPasswordAsync(sourceStream, destinationStream, password).ConfigureAwait(false);
             return destinationStream.ToArray();
         }
     }

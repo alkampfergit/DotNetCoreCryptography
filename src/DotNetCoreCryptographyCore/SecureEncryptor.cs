@@ -1,5 +1,4 @@
-﻿using System;
-using System.IO;
+﻿using System.IO;
 using System.Security.Cryptography;
 using System.Threading.Tasks;
 
@@ -7,7 +6,7 @@ namespace DotNetCoreCryptographyCore
 {
     /// <summary>
     /// <para>
-    /// A class capable to encrypt stream in a secure way using a 
+    /// A class capable to encrypt stream in a secure way using a
     /// <see cref="IKeyVaultStore"/> to protect key used to encrypt.
     /// </para>
     /// <para>
@@ -43,7 +42,7 @@ namespace DotNetCoreCryptographyCore
                 bw.Flush();
 
                 //now use the key to encrypt the rest
-                using var encryptor = key.CreateEncryptor();
+                using var encryptor = key.CreateEncryptor(destinationStream);
                 using CryptoStream csEncrypt = new(destinationStream, encryptor, CryptoStreamMode.Write);
                 await streamToEncrypt.CopyToAsync(csEncrypt).ConfigureAwait(false);
             }
@@ -51,13 +50,13 @@ namespace DotNetCoreCryptographyCore
 
         public async Task Decrypt(MemoryStream sourceEncryptedStream, MemoryStream destinationDecryptedStream)
         {
-            using (var bw = new BinaryReader(sourceEncryptedStream)) 
+            using (var bw = new BinaryReader(sourceEncryptedStream))
             {
                 //read the length of the key, then with that value we can read the encrypted key.
                 var length = bw.ReadInt32();
                 var encryptedKey = bw.ReadBytes(length);
                 using var originalKey = await _keyVaultStore.DecriptAsync(encryptedKey).ConfigureAwait(false);
-                using var decryptor = originalKey.CreateDecryptor();
+                using var decryptor = originalKey.CreateDecryptor(sourceEncryptedStream);
                 using CryptoStream csDecrypt = new(sourceEncryptedStream, decryptor, CryptoStreamMode.Read);
                 await csDecrypt.CopyToAsync(destinationDecryptedStream).ConfigureAwait(false);
             }

@@ -1,4 +1,5 @@
-﻿using System;
+﻿using DotNetCoreCryptographyCore.Utils;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -21,10 +22,7 @@ namespace DotNetCoreCryptographyCore.Concrete
 
         public DevelopKeyValueStore(string keyFolder)
         {
-            if (!Directory.Exists(keyFolder))
-            {
-                Directory.CreateDirectory(keyFolder);
-            }
+            InternalUtils.EnsureDirectory(keyFolder);
             var keyName = Path.Combine(keyFolder, DeveloperKeyName);
             if (!File.Exists(keyName))
             {

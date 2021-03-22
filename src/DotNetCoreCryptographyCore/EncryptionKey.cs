@@ -1,5 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 
@@ -13,7 +13,7 @@ namespace DotNetCoreCryptographyCore
     public class EncryptionKey : IDisposable
     {
         /// <summary>
-        /// Create a new <see cref="EncryptionKey"/> with the standard configured 
+        /// Create a new <see cref="EncryptionKey"/> with the standard configured
         /// algorithm, in this example we will default to AES.
         /// </summary>
         public EncryptionKey()
@@ -29,14 +29,30 @@ namespace DotNetCoreCryptographyCore
         private readonly Aes _key;
         private bool _disposedValue;
 
-        public ICryptoTransform CreateEncryptor()
+        /// <summary>
+        /// Create an encryption envelope, it will return optionally an array of byte to bew
+        /// included at the beginning of the stream, in AES is the IV value.
+        /// </summary>
+        /// <returns></returns>
+        public ICryptoTransform CreateEncryptor(Stream destinationStream)
         {
-            return _key.CreateEncryptor();
+            using var newKey = Aes.Create();
+            newKey.Key = _key.Key;
+            newKey.Mode = _key.Mode;
+            newKey.IV = EncryptionUtils.GenerateRandomByteArray(newKey.IV.Length);
+            destinationStream.Write(newKey.IV, 0, newKey.IV.Length);
+            return newKey.CreateEncryptor();
         }
 
-        public ICryptoTransform CreateDecryptor()
+        public ICryptoTransform CreateDecryptor(Stream encryptedStream)
         {
-            return _key.CreateDecryptor();
+            using var newKey = Aes.Create();
+            newKey.Key = _key.Key;
+            newKey.Mode = _key.Mode;
+            var newIV = new byte[newKey.IV.Length];
+            encryptedStream.Read(newIV, 0, newIV.Length);
+            newKey.IV = newIV;
+            return newKey.CreateDecryptor();
         }
 
         public byte[] Serialize()
@@ -72,14 +88,9 @@ namespace DotNetCoreCryptographyCore
                 && otherKey._key.Mode == _key.Mode;
         }
 
-        public static bool operator ==(EncryptionKey left, EncryptionKey right)
+        public override int GetHashCode()
         {
-            return EqualityComparer<EncryptionKey>.Default.Equals(left, right);
-        }
-
-        public static bool operator !=(EncryptionKey left, EncryptionKey right)
-        {
-            return !(left == right);
+            return _key.GetHashCode();
         }
     }
 }

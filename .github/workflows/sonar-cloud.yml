@@ -1,4 +1,4 @@
-name: Build
+name: SonarCloud
 on:
   push:
     branches:
@@ -56,7 +56,7 @@ jobs:
           
           # Now restore packages and build everything.
           dotnet restore src/DotNetCoreCryptography.sln
-          dotnet test src/DotNetCoreCryptography.sln --collect "Code Coverage"
+          dotnet test "$runningDirectory/src/DotNetCoreCryptography.Tests/DotNetCoreCryptography.Tests.csproj" --collect "Code Coverage"
           dotnet build src/DotNetCoreCryptography.sln --configuration release
 
           .\.sonar\scanner\dotnet-sonarscanner end /d:sonar.login="${{ secrets.SONAR_TOKEN }}"

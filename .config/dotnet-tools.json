@@ -7,6 +7,12 @@
       "commands": [
         "dotnet-gitversion"
       ]
+    },
+    "dotnet-sonarscanner": {
+      "version": "5",
+      "commands": [
+        "dotnet-sonarscanner"
+      ]
     }
   }
 }

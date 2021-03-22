@@ -27,7 +27,6 @@ namespace DotNetCoreCryptographyCore
         }
 
         private readonly Aes _key;
-        private bool _disposedValue;
 
         /// <inheritdoc/>
         public override ICryptoTransform CreateEncryptor(Stream destinationStream)
@@ -57,7 +56,7 @@ namespace DotNetCoreCryptographyCore
             return _key.Serialize();
         }
 
-        protected virtual void OnDispose(bool disposing)
+        protected override void OnDispose(bool disposing)
         {
             if (disposing)
             {

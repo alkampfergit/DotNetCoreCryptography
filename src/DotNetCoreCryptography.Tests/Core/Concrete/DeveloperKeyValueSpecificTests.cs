@@ -12,7 +12,7 @@ namespace DotNetCoreCryptography.Tests.Core.Concrete
         [Fact]
         public async Task Is_able_to_create_folder_if_needed()
         {
-            using var key = new EncryptionKey();
+            using var key = new AesEncryptionKey();
             var sut = new DevelopKeyValueStore(Path.GetTempPath() + Guid.NewGuid().ToString());
             var encrypted = await sut.EncryptAsync(key).ConfigureAwait(false);
             var decrypted = await sut.DecriptAsync(encrypted).ConfigureAwait(false);
@@ -24,7 +24,7 @@ namespace DotNetCoreCryptography.Tests.Core.Concrete
         {
             // create a key encrypt 
             byte[] encrypted;
-            using var key = new EncryptionKey();
+            using var key = new AesEncryptionKey();
 
             var sut = new DevelopKeyValueStore(Path.GetTempPath());
             encrypted = await sut.EncryptAsync(key).ConfigureAwait(false);

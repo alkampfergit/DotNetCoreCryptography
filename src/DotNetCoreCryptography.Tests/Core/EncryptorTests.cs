@@ -79,7 +79,7 @@ namespace DotNetCoreCryptography.Tests.Core
             byte[] stringContent = Encoding.UTF8.GetBytes(content);
             using var sourceStream = new MemoryStream(stringContent);
             using var encryptedStream = new MemoryStream();
-            using var key = new EncryptionKey();
+            using var key = new AesEncryptionKey();
             await StaticEncryptor.EncryptAsync(sourceStream, encryptedStream, key).ConfigureAwait(false);
 
             //Now decrypt

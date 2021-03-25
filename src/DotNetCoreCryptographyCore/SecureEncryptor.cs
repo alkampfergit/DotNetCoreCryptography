@@ -10,7 +10,7 @@ namespace DotNetCoreCryptographyCore
     /// <see cref="IKeyVaultStore"/> to protect key used to encrypt.
     /// </para>
     /// <para>
-    /// It will use by default a new <see cref="EncryptionKey"/> each
+    /// It will use by default a new <see cref="AesEncryptionKey"/> each
     /// time to guarantee maximum security.
     /// </para>
     /// </summary>
@@ -26,7 +26,7 @@ namespace DotNetCoreCryptographyCore
         public async Task Encrypt(Stream streamToEncrypt, MemoryStream destinationStream)
         {
             //to encrypt we need to generate a new key
-            using var key = new EncryptionKey();
+            using var key = new AesEncryptionKey();
 
             //now we want to be able to store it securely
             var encrypted = await _keyVaultStore.EncryptAsync(key).ConfigureAwait(false);

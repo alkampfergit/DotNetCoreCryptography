@@ -12,7 +12,7 @@ namespace DotNetCoreCryptography.Tests.Core.Concrete
         [Fact]
         public async Task Is_able_to_encrypt_and_decrypt_a_key()
         {
-            using var key = new EncryptionKey();
+            using var key = new AesEncryptionKey();
             var sut = CreateSut();
             var encrypted = await sut.EncryptAsync(key).ConfigureAwait(false);
             var decrypted = await sut.DecriptAsync(encrypted).ConfigureAwait(false);

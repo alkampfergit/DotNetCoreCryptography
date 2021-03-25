@@ -1,77 +1,80 @@
 ﻿using System;
 using System.IO;
-using System.Linq;
 using System.Security.Cryptography;
 
 namespace DotNetCoreCryptographyCore
 {
     /// <summary>
-    /// Wrap an implementation of an encryption key, simmetric, this
-    /// is done to avoid hardcoding AES all the way up the user.
+    /// Abstract class that implemnt a key that is 
+    /// able to encrypt a stream. Usually this is a
+    /// symmetric algorithm, in this first version we
+    /// only have AES.
     /// </summary>
-    /// <remarks>This is an implementation of a symmetric key.</remarks>
-    public class EncryptionKey : IDisposable
+    public abstract class EncryptionKey : IDisposable
     {
+        public static EncryptionKey CreateDefault() 
+        {
+            return new AesEncryptionKey();
+        }
+
         /// <summary>
-        /// Create a new <see cref="EncryptionKey"/> with the standard configured
-        /// algorithm, in this example we will default to AES.
+        /// Create correct type of key based on serialied version.
         /// </summary>
-        public EncryptionKey()
+        /// <param name="serializedKey"></param>
+        /// <returns></returns>
+        public static EncryptionKey CreateFromSerializedVersion(byte[] serializedKey)
         {
-            _key = Aes.Create();
+            var keyType = (KeyType)serializedKey[0];
+            switch (keyType)
+            {
+                case KeyType.Aes256:
+                    return new AesEncryptionKey(serializedKey);
+                default:
+                    throw new NotSupportedException($"Type of key {keyType} is not supported");
+            }
         }
-
-        public EncryptionKey(byte[] serializedValue)
-        {
-            _key = serializedValue.DeserializeToAes();
-        }
-
-        private readonly Aes _key;
-        private bool _disposedValue;
 
         /// <summary>
-        /// Create an encryption envelope, it will return optionally an array of byte to bew
-        /// included at the beginning of the stream, in AES is the IV value.
+        /// Create the decryptor for an encrypted stream, a reference to the stream
+        /// is needed to retrieve, optionally, first bytes that can contain some
+        /// encryption related data store by <see cref="CreateEncryptor(Stream)"/>
+        /// method.
+        /// </summary>
+        /// <param name="encryptedStream">Encrypted stream, it must be encrypted
+        /// with the very same type of key used for decryption.</param>
+        /// <returns></returns>
+        public abstract ICryptoTransform CreateDecryptor(Stream encryptedStream);
+
+        /// <summary>
+        /// Create an the encryptor to encrypt the stream, a reference to the 
+        /// destination stream is used because the key can, optionally, use the
+        /// first bytes of the stream to store key related material. In Aes the 
+        /// encryptionKey will save IV at the beginning of the stream.
+        /// </summary>
+        /// <param name="destinationStream">destination stream to encrypt, this stream
+        /// should be empty so the method can store encryption related information</param>
+        /// <returns></returns>
+        public abstract ICryptoTransform CreateEncryptor(Stream destinationStream);
+
+        /// <summary>
+        /// The key should be able to be serialized in a simple byte array to be stored
+        /// in some destination.
         /// </summary>
         /// <returns></returns>
-        public ICryptoTransform CreateEncryptor(Stream destinationStream)
-        {
-            using var newKey = Aes.Create();
-            newKey.Key = _key.Key;
-            newKey.Mode = _key.Mode;
-            newKey.IV = EncryptionUtils.GenerateRandomByteArray(newKey.IV.Length);
-            destinationStream.Write(newKey.IV, 0, newKey.IV.Length);
-            return newKey.CreateEncryptor();
-        }
+        public abstract byte[] Serialize();
 
-        public ICryptoTransform CreateDecryptor(Stream encryptedStream)
-        {
-            using var newKey = Aes.Create();
-            newKey.Key = _key.Key;
-            newKey.Mode = _key.Mode;
-            var newIV = new byte[newKey.IV.Length];
-            encryptedStream.Read(newIV, 0, newIV.Length);
-            newKey.IV = newIV;
-            return newKey.CreateDecryptor();
-        }
-
-        public byte[] Serialize()
-        {
-            return _key.Serialize();
-        }
+        protected bool IsDisposed { get; private set; }
 
         protected virtual void Dispose(bool disposing)
         {
-            if (!_disposedValue)
+            if (!IsDisposed)
             {
-                if (disposing)
-                {
-                    _key.Dispose();
-                }
-
-                _disposedValue = true;
+                OnDispose(disposing);
+                IsDisposed = true;
             }
         }
+
+        protected virtual void OnDispose(bool disposing) { }
 
         public void Dispose()
         {
@@ -80,17 +83,5 @@ namespace DotNetCoreCryptographyCore
             GC.SuppressFinalize(this);
         }
 
-        public override bool Equals(object obj)
-        {
-            return obj is EncryptionKey otherKey
-                && otherKey._key.Key.SequenceEqual(_key.Key)
-                && otherKey._key.IV.SequenceEqual(_key.IV)
-                && otherKey._key.Mode == _key.Mode;
-        }
-
-        public override int GetHashCode()
-        {
-            return _key.GetHashCode();
-        }
     }
 }

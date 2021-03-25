@@ -2,18 +2,23 @@
 using DotNetCoreCryptographyCore.Concrete;
 using System;
 using System.IO;
-using System.Security.Cryptography;
 using System.Threading.Tasks;
 using Xunit;
 
 namespace DotNetCoreCryptography.Tests.Core.Concrete
 {
+    /// <summary>
+    /// Still not to be used in production, it implements a simple key
+    /// vault store that is based on a folder on disk. Key is encrypted
+    /// with a secret password that should be given into constructor
+    /// to decrypt the key from disk.
+    /// </summary>
     public class FolderBasedKeyValueStoreSpecificTests
     {
         [Fact]
         public async Task Unable_to_decrypt_if_wrong_password()
         {
-            using var key = new EncryptionKey();
+            using var key = new AesEncryptionKey();
             string keyMaterialFolder = Path.GetTempPath() + Guid.NewGuid().ToString();
             var sut = new FolderBasedKeyValueStore(
                 keyMaterialFolder,
@@ -30,7 +35,7 @@ namespace DotNetCoreCryptography.Tests.Core.Concrete
         [Fact]
         public async Task Avoid_using_the_same_IV()
         {
-            using var key = new EncryptionKey();
+            using var key = EncryptionKey.CreateDefault();
             string keyMaterialFolder = Path.GetTempPath() + Guid.NewGuid().ToString();
             var sut = new FolderBasedKeyValueStore(
                 keyMaterialFolder,

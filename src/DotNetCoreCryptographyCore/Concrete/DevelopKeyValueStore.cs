@@ -1,9 +1,5 @@
 ﻿using DotNetCoreCryptographyCore.Utils;
-using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace DotNetCoreCryptographyCore.Concrete
@@ -26,11 +22,11 @@ namespace DotNetCoreCryptographyCore.Concrete
             var keyName = Path.Combine(keyFolder, DeveloperKeyName);
             if (!File.Exists(keyName))
             {
-                using var key = new EncryptionKey();
+                using var key = EncryptionKey.CreateDefault();
                 File.WriteAllBytes(keyName, key.Serialize());
             }
 
-            _key = new EncryptionKey(File.ReadAllBytes(keyName));
+            _key = EncryptionKey.CreateFromSerializedVersion(File.ReadAllBytes(keyName));
         }
 
         public async Task<EncryptionKey> DecriptAsync(byte[] encryptedKey)
@@ -38,14 +34,14 @@ namespace DotNetCoreCryptographyCore.Concrete
             using var sourceMs = new MemoryStream(encryptedKey);
             using var destinationMs = new MemoryStream();
             await StaticEncryptor.DecryptAsync(sourceMs, destinationMs, _key).ConfigureAwait(false);
-            return new EncryptionKey(destinationMs.ToArray());
+            return new AesEncryptionKey(destinationMs.ToArray());
         }
 
         public async Task<byte[]> EncryptAsync(EncryptionKey key)
         {
             using var destinationMs = new MemoryStream();
             using var sourceMs = new MemoryStream(key.Serialize());
-            await StaticEncryptor.EncryptAsync(sourceMs , destinationMs, _key).ConfigureAwait(false);
+            await StaticEncryptor.EncryptAsync(sourceMs, destinationMs, _key).ConfigureAwait(false);
             return destinationMs.ToArray();
         }
     }

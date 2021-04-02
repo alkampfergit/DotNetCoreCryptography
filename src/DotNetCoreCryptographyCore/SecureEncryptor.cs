@@ -26,7 +26,7 @@ namespace DotNetCoreCryptographyCore
         public async Task Encrypt(Stream streamToEncrypt, MemoryStream destinationStream)
         {
             //to encrypt we need to generate a new key
-            using var key = new AesEncryptionKey();
+            using var key = EncryptionKey.CreateDefault();
 
             //now we want to be able to store it securely
             var encrypted = await _keyVaultStore.EncryptAsync(key).ConfigureAwait(false);

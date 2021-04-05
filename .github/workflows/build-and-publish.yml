@@ -28,4 +28,4 @@ jobs:
       #     dotnet-version: 5.0.x
 
       - shell: powershell
-        run: ./build.ps1
+        run: ./build.ps1 -nugetPublish $true -nugetApiKey ${{ secrets.NUGET_API_KEY }}

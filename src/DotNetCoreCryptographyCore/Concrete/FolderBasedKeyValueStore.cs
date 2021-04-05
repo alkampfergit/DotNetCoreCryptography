@@ -23,7 +23,7 @@ namespace DotNetCoreCryptographyCore.Concrete
             if (!File.Exists(keyName))
             {
                 //create the first key
-                _key = new EncryptionKey();
+                _key = EncryptionKey.CreateDefault();
                 var serializedKey = _key.Serialize();
                 var encryptedSerializedKey = StaticEncryptor.AesEncryptWithPasswordAsync(serializedKey, password).Result;
                 File.WriteAllBytes(keyName, encryptedSerializedKey);
@@ -32,7 +32,7 @@ namespace DotNetCoreCryptographyCore.Concrete
             {
                 var encryptedSerializedKey = File.ReadAllBytes(keyName);
                 var serializedKey = StaticEncryptor.AesDecryptWithPasswordAsync(encryptedSerializedKey, password).Result;
-                _key = new EncryptionKey(serializedKey);
+                _key = EncryptionKey.CreateFromSerializedVersion(serializedKey);
             }
         }
 
@@ -41,7 +41,7 @@ namespace DotNetCoreCryptographyCore.Concrete
             using var sourceMs = new MemoryStream(encryptedKey);
             using var destinationMs = new MemoryStream();
             await StaticEncryptor.DecryptAsync(sourceMs, destinationMs, _key).ConfigureAwait(false);
-            return new EncryptionKey(destinationMs.ToArray());
+            return EncryptionKey.CreateFromSerializedVersion(destinationMs.ToArray());
         }
 
         public async Task<byte[]> EncryptAsync(EncryptionKey key)

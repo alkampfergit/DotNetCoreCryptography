@@ -48,5 +48,45 @@ namespace DotNetCoreCryptography.Tests.Core.Concrete
             //Same key encrypted two times should generate a different result due to different IV used
             Assert.NotEqual(encrypted, otherEncrypted);
         }
+
+        [Fact]
+        public void Auto_create_first_key()
+        {
+            using var key = EncryptionKey.CreateDefault();
+            string keyMaterialFolder = Path.GetTempPath() + Guid.NewGuid().ToString();
+            var sut = new FolderBasedKeyValueStore(
+                keyMaterialFolder,
+                "password");
+
+            Assert.Single(Directory.GetFiles(keyMaterialFolder, "*.key"));
+        }
+
+        [Fact]
+        public void Basic_ability_to_rotate_key()
+        {
+            using var key = EncryptionKey.CreateDefault();
+            string keyMaterialFolder = Path.GetTempPath() + Guid.NewGuid().ToString();
+            var sut = new FolderBasedKeyValueStore(
+                keyMaterialFolder,
+                "password");
+
+            sut.GenerateNewKey();
+            Assert.Equal(2, Directory.GetFiles(keyMaterialFolder, "*.key").Length);
+        }
+
+        [Fact]
+        public async Task Rotate_and_decrypt()
+        {
+            using var key = EncryptionKey.CreateDefault();
+            string keyMaterialFolder = Path.GetTempPath() + Guid.NewGuid().ToString();
+            var sut = new FolderBasedKeyValueStore(keyMaterialFolder, "password");
+
+            //Same encryption with the same key will return the very same result.
+            var encrypted = await sut.EncryptAsync(key).ConfigureAwait(false);
+
+            sut.GenerateNewKey();
+            var decrypted = await sut.DecriptAsync(encrypted).ConfigureAwait(false);
+            Assert.Equal(key, decrypted);
+        }
     }
 }

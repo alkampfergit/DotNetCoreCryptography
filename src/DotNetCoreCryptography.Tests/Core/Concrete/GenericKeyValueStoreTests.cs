@@ -1,4 +1,5 @@
-﻿using DotNetCoreCryptographyCore;
+﻿using DotNetCoreCryptography.Azure;
+using DotNetCoreCryptographyCore;
 using DotNetCoreCryptographyCore.Concrete;
 using System;
 using System.IO;
@@ -27,6 +28,14 @@ namespace DotNetCoreCryptography.Tests.Core.Concrete
         protected override IKeyVaultStore CreateSut()
         {
             return new DevelopKeyValueStore(Path.GetTempPath());
+        }
+    }
+
+    public class AzureKeyValueStoreTests : GenericKeyValueStoreTests
+    {
+        protected override IKeyVaultStore CreateSut()
+        {
+            return new AzureKeyVaultStore("https://test-kv-alk.vault.azure.net/", "test");
         }
     }
 

@@ -3,9 +3,11 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 16
 VisualStudioVersion = 16.0.31105.61
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DotNetCoreCryptographyCore", "DotNetCoreCryptographyCore\DotNetCoreCryptographyCore.csproj", "{287EEF97-828C-4085-8E92-3EEA75FFA98A}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DotNetCoreCryptographyCore", "DotNetCoreCryptographyCore\DotNetCoreCryptographyCore.csproj", "{70F31DD8-AFD5-4353-B109-045481B8A93C}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DotNetCoreCryptography.Tests", "DotNetCoreCryptography.Tests\DotNetCoreCryptography.Tests.csproj", "{E3292F97-F17F-4E3D-A11D-FA675556C65F}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DotNetCoreCryptography.Tests", "DotNetCoreCryptography.Tests\DotNetCoreCryptography.Tests.csproj", "{CFBF6089-F483-4BB1-8CD6-D4A251EDF46D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DotNetCoreCryptography.Azure", "DotNetCoreCryptography.Azure\DotNetCoreCryptography.Azure.csproj", "{667DEBFA-D02D-4227-B6E4-D0BFBCB08EF4}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -13,14 +15,18 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{287EEF97-828C-4085-8E92-3EEA75FFA98A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{287EEF97-828C-4085-8E92-3EEA75FFA98A}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{287EEF97-828C-4085-8E92-3EEA75FFA98A}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{287EEF97-828C-4085-8E92-3EEA75FFA98A}.Release|Any CPU.Build.0 = Release|Any CPU
-		{E3292F97-F17F-4E3D-A11D-FA675556C65F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{E3292F97-F17F-4E3D-A11D-FA675556C65F}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{E3292F97-F17F-4E3D-A11D-FA675556C65F}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{E3292F97-F17F-4E3D-A11D-FA675556C65F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{70F31DD8-AFD5-4353-B109-045481B8A93C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{70F31DD8-AFD5-4353-B109-045481B8A93C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{70F31DD8-AFD5-4353-B109-045481B8A93C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{70F31DD8-AFD5-4353-B109-045481B8A93C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{CFBF6089-F483-4BB1-8CD6-D4A251EDF46D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CFBF6089-F483-4BB1-8CD6-D4A251EDF46D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CFBF6089-F483-4BB1-8CD6-D4A251EDF46D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CFBF6089-F483-4BB1-8CD6-D4A251EDF46D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{667DEBFA-D02D-4227-B6E4-D0BFBCB08EF4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{667DEBFA-D02D-4227-B6E4-D0BFBCB08EF4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{667DEBFA-D02D-4227-B6E4-D0BFBCB08EF4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{667DEBFA-D02D-4227-B6E4-D0BFBCB08EF4}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

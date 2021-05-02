@@ -31,6 +31,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\DotNetCoreCryptography.Azure\DotNetCoreCryptography.Azure.csproj" />
     <ProjectReference Include="..\DotNetCoreCryptographyCore\DotNetCoreCryptographyCore.csproj" />
   </ItemGroup>
 

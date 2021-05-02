@@ -16,7 +16,6 @@ if (Test-Path $testOutputDir)
     Remove-Item $testOutputDir -Recurse -Force
 }
 
-
 $version = Invoke-Gitversion
 $assemblyVer = $version.assemblyVersion 
 

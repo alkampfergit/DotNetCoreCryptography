@@ -35,5 +35,5 @@ dotnet pack "$runningDirectory/src/DotNetCoreCryptographyCore/DotNetCoreCryptogr
 
 if ($true -eq $nugetPublish) 
 {
-    dotnet nuget push .\artifacts\NuGet\** --source https://api.nuget.org/v3/index.json --api-key $nugetApiKey
+    dotnet nuget push .\artifacts\NuGet\** --source https://api.nuget.org/v3/index.json --api-key $nugetApiKey --skip-duplicate
 }

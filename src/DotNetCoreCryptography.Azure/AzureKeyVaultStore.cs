@@ -10,7 +10,7 @@ namespace DotNetCoreCryptography.Azure
     public class AzureKeyVaultStore : IKeyVaultStore
     {
         private readonly string _actualKeyName;
-        private KeyClient _keyClient;
+        private readonly KeyClient _keyClient;
 
         public AzureKeyVaultStore(
             string keyValueStoreAddress,
@@ -28,19 +28,19 @@ namespace DotNetCoreCryptography.Azure
             var result = await cryptoClient.DecryptAsync(
                 EncryptionAlgorithm.RsaOaep256,
                 encryptedKey,
-                default);
+                default).ConfigureAwait(false);
             return EncryptionKey.CreateFromSerializedVersion(result.Plaintext);
         }
 
         public async Task<byte[]> EncryptAsync(EncryptionKey key)
         {
-            var keyVaultKey = await _keyClient.GetKeyAsync(_actualKeyName);
+            var keyVaultKey = await _keyClient.GetKeyAsync(_actualKeyName).ConfigureAwait(false);
             var cryptoClient = new CryptographyClient(keyId: keyVaultKey.Value.Id, credential: new DefaultAzureCredential());
 
             var result = await cryptoClient.EncryptAsync(
                 EncryptionAlgorithm.RsaOaep256,
                 key.Serialize(),
-                default);
+                default).ConfigureAwait(false);
             return result.Ciphertext;
         }
     }

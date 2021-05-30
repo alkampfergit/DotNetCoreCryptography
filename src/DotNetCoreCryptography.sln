@@ -7,7 +7,9 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DotNetCoreCryptographyCore"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DotNetCoreCryptography.Tests", "DotNetCoreCryptography.Tests\DotNetCoreCryptography.Tests.csproj", "{CFBF6089-F483-4BB1-8CD6-D4A251EDF46D}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DotNetCoreCryptography.Azure", "DotNetCoreCryptography.Azure\DotNetCoreCryptography.Azure.csproj", "{667DEBFA-D02D-4227-B6E4-D0BFBCB08EF4}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DotNetCoreCryptography.Azure", "DotNetCoreCryptography.Azure\DotNetCoreCryptography.Azure.csproj", "{667DEBFA-D02D-4227-B6E4-D0BFBCB08EF4}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DotNetCoreCryptography.KeyVault", "DotNetCoreCryptography.KeyVault\DotNetCoreCryptography.KeyVault.csproj", "{ECB8211D-A5B1-4639-BC2C-BBD5B981CC23}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -27,18 +29,10 @@ Global
 		{667DEBFA-D02D-4227-B6E4-D0BFBCB08EF4}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{667DEBFA-D02D-4227-B6E4-D0BFBCB08EF4}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{667DEBFA-D02D-4227-B6E4-D0BFBCB08EF4}.Release|Any CPU.Build.0 = Release|Any CPU
-		{287EEF97-828C-4085-8E92-3EEA75FFA98A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{287EEF97-828C-4085-8E92-3EEA75FFA98A}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{287EEF97-828C-4085-8E92-3EEA75FFA98A}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{287EEF97-828C-4085-8E92-3EEA75FFA98A}.Release|Any CPU.Build.0 = Release|Any CPU
-		{E3292F97-F17F-4E3D-A11D-FA675556C65F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{E3292F97-F17F-4E3D-A11D-FA675556C65F}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{E3292F97-F17F-4E3D-A11D-FA675556C65F}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{E3292F97-F17F-4E3D-A11D-FA675556C65F}.Release|Any CPU.Build.0 = Release|Any CPU
-		{F8E70BE8-C630-469F-80D6-565AE0C952DA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{F8E70BE8-C630-469F-80D6-565AE0C952DA}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{F8E70BE8-C630-469F-80D6-565AE0C952DA}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{F8E70BE8-C630-469F-80D6-565AE0C952DA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{ECB8211D-A5B1-4639-BC2C-BBD5B981CC23}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{ECB8211D-A5B1-4639-BC2C-BBD5B981CC23}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{ECB8211D-A5B1-4639-BC2C-BBD5B981CC23}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{ECB8211D-A5B1-4639-BC2C-BBD5B981CC23}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -54,7 +54,7 @@ namespace DotNetCoreCryptography.Tests.Core.Concrete
         {
             using var key = EncryptionKey.CreateDefault();
             string keyMaterialFolder = Path.GetTempPath() + Guid.NewGuid().ToString();
-            var sut = new FolderBasedKeyValueStore(
+            new FolderBasedKeyValueStore(
                 keyMaterialFolder,
                 "password");
 

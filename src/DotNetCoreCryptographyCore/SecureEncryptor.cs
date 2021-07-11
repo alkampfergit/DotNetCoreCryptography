@@ -10,7 +10,7 @@ namespace DotNetCoreCryptographyCore
     /// <see cref="IKeyEncryptor"/> to protect key used to encrypt.
     /// </para>
     /// <para>
-    /// It will use by default a new <see cref="AesEncryptionKey"/> each
+    /// It will use by default a new <see cref="EncryptionKey"/> each
     /// time to guarantee maximum security.
     /// </para>
     /// </summary>
@@ -48,6 +48,14 @@ namespace DotNetCoreCryptographyCore
             }
         }
 
+        /// <summary>
+        /// Decrypt a stream encrypted by <see cref="Encrypt(Stream, Stream)"/> method. Encrypted
+        /// stream contains an header that contains the key used to encrypt the stream, the
+        /// key is encrypted using <see cref="IKeyVaultStore"/>.
+        /// </summary>
+        /// <param name="sourceEncryptedStream"></param>
+        /// <param name="destinationDecryptedStream"></param>
+        /// <returns></returns>
         public async Task Decrypt(Stream sourceEncryptedStream, Stream destinationDecryptedStream)
         {
             using (var bw = new BinaryReader(sourceEncryptedStream))

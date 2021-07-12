@@ -85,7 +85,7 @@ namespace DotNetCoreCryptography.Tests.Core.Concrete
             var encrypted = await sut.EncryptAsync(key).ConfigureAwait(false);
 
             sut.GenerateNewKey();
-            var decrypted = await sut.DecriptAsync(encrypted).ConfigureAwait(false);
+            var decrypted = await sut.DecryptAsync(encrypted).ConfigureAwait(false);
             Assert.Equal(key, decrypted);
         }
     }

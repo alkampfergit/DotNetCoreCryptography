@@ -24,6 +24,6 @@ namespace DotNetCoreCryptographyCore
         /// </summary>
         /// <param name="encryptedKey"></param>
         /// <returns></returns>
-        public Task<EncryptionKey> DecriptAsync(byte[] encryptedKey);
+        public Task<EncryptionKey> DecryptAsync(byte[] encryptedKey);
     }
 }

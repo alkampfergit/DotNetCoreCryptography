@@ -29,7 +29,7 @@ namespace DotNetCoreCryptographyCore.Concrete
             _key = EncryptionKey.CreateFromSerializedVersion(File.ReadAllBytes(keyName));
         }
 
-        public async Task<EncryptionKey> DecriptAsync(byte[] encryptedKey)
+        public async Task<EncryptionKey> DecryptAsync(byte[] encryptedKey)
         {
             using var sourceMs = new MemoryStream(encryptedKey);
             using var destinationMs = new MemoryStream();

@@ -9,7 +9,7 @@ namespace DotNetCoreCryptographyCore
     /// </summary>
     public abstract class AsymmetricEncryptionKey : IDisposable
     {
-        public static object CreateFromSerializedVersion(byte[] serializedKey)
+        public static AsymmetricEncryptionKey CreateFromSerializedVersion(byte[] serializedKey)
         {
             var keyType = (AsymmetricKeyType)serializedKey[0];
             switch (keyType)
@@ -30,6 +30,10 @@ namespace DotNetCoreCryptographyCore
         /// <returns></returns>
         public abstract byte[] Serialize();
 
+        public abstract byte[] Encrypt(byte[] data);
+
+        public abstract byte[] Decrypt(byte[] encryptedData);
+
         /// <summary>
         /// Serialize only public part of the key, this can be used to recreate a
         /// simple RSA object that contains only public part of the key.
@@ -38,6 +42,16 @@ namespace DotNetCoreCryptographyCore
         public abstract byte[] SerializePublicKey();
 
         protected bool IsDisposed { get; private set; }
+
+        /// <summary>
+        /// Custom IsEqualTo function to compare two key, each concrete 
+        /// key should implement its own check function.
+        /// </summary>
+        /// <param name="other"></param>
+        /// <returns></returns>
+        public abstract bool IsEqualTo(AsymmetricEncryptionKey other);
+
+        public bool HasPrivateKey { get; protected set; }
 
         protected virtual void Dispose(bool disposing)
         {

@@ -18,8 +18,6 @@ namespace DotNetCoreCryptographyCore
             HasPrivateKey = hasPrivateKey;
         }
 
-        public bool HasPrivateKey { get; private set; }
-
         public override byte[] Serialize()
         {
             return _key.Serialize(true);
@@ -30,10 +28,15 @@ namespace DotNetCoreCryptographyCore
             return _key.Serialize(false);
         }
 
-        public bool IsEqualTo(RsaEncryptionKey other)
+        public override bool IsEqualTo(AsymmetricEncryptionKey other)
         {
-            return HasPrivateKey == other.HasPrivateKey
-                && _key.ExportParameters(HasPrivateKey).KeyEqual(other._key.ExportParameters(HasPrivateKey));
+            if (other is RsaEncryptionKey rsaKey)
+            {
+                return HasPrivateKey == rsaKey.HasPrivateKey
+                    && _key.ExportParameters(HasPrivateKey).KeyEqual(rsaKey._key.ExportParameters(HasPrivateKey));
+
+            }
+            return false;
         }
 
         protected override void OnDispose(bool disposing)
@@ -42,6 +45,16 @@ namespace DotNetCoreCryptographyCore
             {
                 _key.Dispose();
             }
+        }
+
+        public override byte[] Encrypt(byte[] data)
+        {
+            return _key.Encrypt(data, RSAEncryptionPadding.OaepSHA512);
+        }
+
+        public override byte[] Decrypt(byte[] encryptedData)
+        {
+            return _key.Decrypt(encryptedData, RSAEncryptionPadding.OaepSHA512);
         }
     }
 }

@@ -52,7 +52,7 @@ namespace DotNetCoreCryptographyCore.Concrete
             return key;
         }
 
-        public async Task<EncryptionKey> DecriptAsync(byte[] encryptedKey)
+        public async Task<EncryptionKey> DecryptAsync(byte[] encryptedKey)
         {
             using var sourceMs = new MemoryStream(encryptedKey);
             var buffer = new byte[4];

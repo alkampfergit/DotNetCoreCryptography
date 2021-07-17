@@ -19,6 +19,11 @@ namespace DotNetCoreCryptographyCore
         public AesEncryptionKey()
         {
             _key = Aes.Create();
+
+            if (_key.KeySize != 256)
+            {
+                throw new Exception($"Generated AES key has no 256 bit length but it has {_key.KeySize} bit key");
+            }
         }
 
         public AesEncryptionKey(byte[] serializedValue)

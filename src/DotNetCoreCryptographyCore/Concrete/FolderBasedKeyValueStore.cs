@@ -12,7 +12,7 @@ namespace DotNetCoreCryptographyCore.Concrete
     /// as key material storage. All keys are stored in the given location but
     /// protected with a password.
     /// </summary>
-    public class FolderBasedKeyValueStore : IKeyVaultStore
+    public class FolderBasedKeyValueStore : IKeyEncryptor
     {
         private readonly ConcurrentDictionary<int, EncryptionKey> _keys = new ConcurrentDictionary<int, EncryptionKey>();
         private EncryptionKey _currentKey;

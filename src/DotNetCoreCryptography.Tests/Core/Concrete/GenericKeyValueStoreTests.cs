@@ -20,12 +20,12 @@ namespace DotNetCoreCryptography.Tests.Core.Concrete
             Assert.Equal(key, decrypted);
         }
 
-        protected abstract IKeyVaultStore CreateSut();
+        protected abstract IKeyEncryptor CreateSut();
     }
 
     public class DevelopKeyValueStoreTests : GenericKeyValueStoreTests
     {
-        protected override IKeyVaultStore CreateSut()
+        protected override IKeyEncryptor CreateSut()
         {
             return new DevelopKeyValueStore(Path.GetTempPath());
         }
@@ -33,7 +33,7 @@ namespace DotNetCoreCryptography.Tests.Core.Concrete
 
     public class AzureKeyValueStoreTests : GenericKeyValueStoreTests
     {
-        protected override IKeyVaultStore CreateSut()
+        protected override IKeyEncryptor CreateSut()
         {
             return new AzureKeyVaultStore("https://test-kv-alk.vault.azure.net/", "test");
         }
@@ -41,7 +41,7 @@ namespace DotNetCoreCryptography.Tests.Core.Concrete
 
     public class FolderBasedAesKeyValueStoreTests : GenericKeyValueStoreTests
     {
-        protected override IKeyVaultStore CreateSut()
+        protected override IKeyEncryptor CreateSut()
         {
             return new FolderBasedKeyValueStore(Path.GetTempPath()+ Guid.NewGuid().ToString(), "test");
         }

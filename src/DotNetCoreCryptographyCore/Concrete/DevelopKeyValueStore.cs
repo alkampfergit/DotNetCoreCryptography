@@ -10,7 +10,7 @@ namespace DotNetCoreCryptographyCore.Concrete
     /// uses a directory to store a master key used to encrypt/decript by
     /// that master key is stored in clear form.
     /// </summary>
-    public class DevelopKeyValueStore : IKeyVaultStore
+    public class DevelopKeyValueStore : IKeyEncryptor
     {
         public const string DeveloperKeyName = "developerKeyValueStore.key";
 

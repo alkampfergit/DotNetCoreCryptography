@@ -3,12 +3,12 @@
 namespace DotNetCoreCryptographyCore
 {
     /// <summary>
-    /// A generic interface that is capable to secure store a key
+    /// A generic interface that is capable to secure encrypt/decrypt a key
     /// to protect the usage. In Azure or other cloud it is supposed to 
     /// be implemented by a class that uses standard KeyVault of the provider,
     /// if possible implemented with HSM.
     /// </summary>
-    public interface IKeyVaultStore
+    public interface IKeyEncryptor
     {
         /// <summary>
         /// Encrypt requested key and return encrypted value as byte array, caller does

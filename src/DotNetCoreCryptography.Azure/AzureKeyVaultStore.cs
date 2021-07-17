@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace DotNetCoreCryptography.Azure
 {
-    public class AzureKeyVaultStore : IKeyVaultStore
+    public class AzureKeyVaultStore : IKeyEncryptor
     {
         private readonly string _actualKeyName;
         private readonly KeyClient _keyClient;

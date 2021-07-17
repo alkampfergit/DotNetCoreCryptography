@@ -7,7 +7,7 @@ namespace DotNetCoreCryptographyCore
     /// <summary>
     /// <para>
     /// A class capable to encrypt stream in a secure way using a
-    /// <see cref="IKeyVaultStore"/> to protect key used to encrypt.
+    /// <see cref="IKeyEncryptor"/> to protect key used to encrypt.
     /// </para>
     /// <para>
     /// It will use by default a new <see cref="AesEncryptionKey"/> each
@@ -16,14 +16,14 @@ namespace DotNetCoreCryptographyCore
     /// </summary>
     public class SecureEncryptor
     {
-        private readonly IKeyVaultStore _keyVaultStore;
+        private readonly IKeyEncryptor _keyVaultStore;
 
-        public SecureEncryptor(IKeyVaultStore keyVaultStore)
+        public SecureEncryptor(IKeyEncryptor keyVaultStore)
         {
             _keyVaultStore = keyVaultStore;
         }
 
-        public async Task Encrypt(Stream streamToEncrypt, MemoryStream destinationStream)
+        public async Task Encrypt(Stream streamToEncrypt, Stream destinationStream)
         {
             //to encrypt we need to generate a new key
             using var key = EncryptionKey.CreateDefault();
@@ -48,7 +48,7 @@ namespace DotNetCoreCryptographyCore
             }
         }
 
-        public async Task Decrypt(MemoryStream sourceEncryptedStream, MemoryStream destinationDecryptedStream)
+        public async Task Decrypt(Stream sourceEncryptedStream, Stream destinationDecryptedStream)
         {
             using (var bw = new BinaryReader(sourceEncryptedStream))
             {

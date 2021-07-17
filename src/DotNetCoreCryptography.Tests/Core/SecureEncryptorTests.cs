@@ -16,14 +16,15 @@ namespace DotNetCoreCryptography.Tests.Core
             using var streamToEncrypt = GenerateStreamToEncrypt();
 
             //ok now we need to secure encrypt and decrypt the stream
-            using var destinationStream = new MemoryStream();
-            await sut.Encrypt(streamToEncrypt, destinationStream);
+            using var encryptedStream = new MemoryStream();
+            await sut.Encrypt(streamToEncrypt, encryptedStream);
 
             //now we want to read again and decrypt
-            using var sourceEncryptedStream = new MemoryStream(destinationStream.ToArray());
-            using var destinationDecryptedStream = new MemoryStream();
-            await sut.Decrypt(sourceEncryptedStream, destinationDecryptedStream);
-            var decryptedContent = Encoding.UTF8.GetString(destinationDecryptedStream.ToArray());
+            var sourceEncryptedStream = new MemoryStream(encryptedStream.ToArray());
+            using var decryptedStream = new MemoryStream();
+            await sut.Decrypt(sourceEncryptedStream, decryptedStream);
+
+            var decryptedContent = Encoding.UTF8.GetString(decryptedStream.ToArray());
             Assert.Equal(decryptedContent, someContenttoBeEncrypted);
         }
 

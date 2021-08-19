@@ -7,7 +7,7 @@ namespace DotNetCoreCryptographyCore
 {
     public static class AsymmetricEncryptionUtils
     {
-        public static bool KeyEqual(this RSAParameters p1, RSAParameters p2) 
+        public static bool KeyEqual(this RSAParameters p1, RSAParameters p2)
         {
             return p1.D.SequenceEqual(p2.D)
                 && p1.DP.SequenceEqual(p2.DP)
@@ -34,7 +34,7 @@ namespace DotNetCoreCryptographyCore
             }
 
             var pp = rsa.ExportParameters(includePrivatePart);
-            
+
             //we need to serialize private parameters
             using var ms = new MemoryStream(4096);
             using var bw = new BinaryWriter(ms);

@@ -7,13 +7,13 @@ using Xunit;
 
 namespace DotNetCoreCryptography.Tests.Core.Concrete
 {
-    public abstract class DeveloperKeyValueSpecificTests
+    public abstract class DeveloperKeyEncryptorSpecificTests
     {
         [Fact]
         public async Task Is_able_to_create_folder_if_needed()
         {
             using var key = new AesEncryptionKey();
-            var sut = new DevelopKeyValueStore(Path.GetTempPath() + Guid.NewGuid().ToString());
+            var sut = new DevelopKeyEncryptor(Path.GetTempPath() + Guid.NewGuid().ToString());
             var encrypted = await sut.EncryptAsync(key).ConfigureAwait(false);
             var decrypted = await sut.DecryptAsync(encrypted).ConfigureAwait(false);
             Assert.Equal(key, decrypted);
@@ -26,11 +26,11 @@ namespace DotNetCoreCryptography.Tests.Core.Concrete
             byte[] encrypted;
             using var key = new AesEncryptionKey();
 
-            var sut = new DevelopKeyValueStore(Path.GetTempPath());
+            var sut = new DevelopKeyEncryptor(Path.GetTempPath());
             encrypted = await sut.EncryptAsync(key).ConfigureAwait(false);
 
             // then decrypt with another instance of the keyvalue store.
-            var anotherSut = new DevelopKeyValueStore(Path.GetTempPath());
+            var anotherSut = new DevelopKeyEncryptor(Path.GetTempPath());
             var decrypted = await anotherSut.DecryptAsync(encrypted).ConfigureAwait(false);
             Assert.Equal(key, decrypted);
         }

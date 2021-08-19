@@ -13,21 +13,21 @@ namespace DotNetCoreCryptography.Tests.Core.Concrete
     /// with a secret password that should be given into constructor
     /// to decrypt the key from disk.
     /// </summary>
-    public class FolderBasedKeyValueStoreSpecificTests
+    public class FolderBasedKeyEncryptorSpecificTests
     {
         [Fact]
         public async Task Unable_to_decrypt_if_wrong_password()
         {
             using var key = new AesEncryptionKey();
             string keyMaterialFolder = Path.GetTempPath() + Guid.NewGuid().ToString();
-            var sut = new FolderBasedKeyValueStore(
+            var sut = new FolderBasedKeyEncryptor(
                 keyMaterialFolder,
                 "password");
             await sut.EncryptAsync(key).ConfigureAwait(false);
 
             //We should not be able to create a sut where already exists a key
             //with an invalid password
-            Assert.Throws<AggregateException>(() => new FolderBasedKeyValueStore(
+            Assert.Throws<AggregateException>(() => new FolderBasedKeyEncryptor(
                keyMaterialFolder,
                "another-password"));
         }
@@ -37,7 +37,7 @@ namespace DotNetCoreCryptography.Tests.Core.Concrete
         {
             using var key = EncryptionKey.CreateDefault();
             string keyMaterialFolder = Path.GetTempPath() + Guid.NewGuid().ToString();
-            var sut = new FolderBasedKeyValueStore(
+            var sut = new FolderBasedKeyEncryptor(
                 keyMaterialFolder,
                 "password");
 
@@ -54,7 +54,7 @@ namespace DotNetCoreCryptography.Tests.Core.Concrete
         {
             using var key = EncryptionKey.CreateDefault();
             string keyMaterialFolder = Path.GetTempPath() + Guid.NewGuid().ToString();
-            new FolderBasedKeyValueStore(
+            new FolderBasedKeyEncryptor(
                 keyMaterialFolder,
                 "password");
 
@@ -66,7 +66,7 @@ namespace DotNetCoreCryptography.Tests.Core.Concrete
         {
             using var key = EncryptionKey.CreateDefault();
             string keyMaterialFolder = Path.GetTempPath() + Guid.NewGuid().ToString();
-            var sut = new FolderBasedKeyValueStore(
+            var sut = new FolderBasedKeyEncryptor(
                 keyMaterialFolder,
                 "password");
 
@@ -79,7 +79,7 @@ namespace DotNetCoreCryptography.Tests.Core.Concrete
         {
             using var key = EncryptionKey.CreateDefault();
             string keyMaterialFolder = Path.GetTempPath() + Guid.NewGuid().ToString();
-            var sut = new FolderBasedKeyValueStore(keyMaterialFolder, "password");
+            var sut = new FolderBasedKeyEncryptor(keyMaterialFolder, "password");
 
             //Same encryption with the same key will return the very same result.
             var encrypted = await sut.EncryptAsync(key).ConfigureAwait(false);

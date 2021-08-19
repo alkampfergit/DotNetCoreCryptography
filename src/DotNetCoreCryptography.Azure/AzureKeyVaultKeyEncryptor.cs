@@ -7,12 +7,12 @@ using System.Threading.Tasks;
 
 namespace DotNetCoreCryptography.Azure
 {
-    public class AzureKeyVaultStore : IKeyEncryptor
+    public class AzureKeyVaultKeyEncryptor : IKeyEncryptor
     {
         private readonly string _actualKeyName;
         private readonly KeyClient _keyClient;
 
-        public AzureKeyVaultStore(
+        public AzureKeyVaultKeyEncryptor(
             string keyValueStoreAddress,
             string actualKeyName)
         {
@@ -22,7 +22,7 @@ namespace DotNetCoreCryptography.Azure
 
         public async Task<EncryptionKey> DecryptAsync(byte[] encryptedKey)
         {
-            var key = await _keyClient.GetKeyAsync(_actualKeyName);
+            var key = await _keyClient.GetKeyAsync(_actualKeyName).ConfigureAwait(false);
             var cryptoClient = new CryptographyClient(keyId: key.Value.Id, credential: new DefaultAzureCredential());
 
             var result = await cryptoClient.DecryptAsync(

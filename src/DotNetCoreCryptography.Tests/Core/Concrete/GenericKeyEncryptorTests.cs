@@ -8,7 +8,7 @@ using Xunit;
 
 namespace DotNetCoreCryptography.Tests.Core.Concrete
 {
-    public abstract class GenericKeyValueStoreTests
+    public abstract class GenericKeyEncryptorTests
     {
         [Fact]
         public async Task Is_able_to_encrypt_and_decrypt_a_key()
@@ -23,27 +23,27 @@ namespace DotNetCoreCryptography.Tests.Core.Concrete
         protected abstract IKeyEncryptor CreateSut();
     }
 
-    public class DevelopKeyValueStoreTests : GenericKeyValueStoreTests
+    public class DevelopKeyValueStoreTests : GenericKeyEncryptorTests
     {
         protected override IKeyEncryptor CreateSut()
         {
-            return new DevelopKeyValueStore(Path.GetTempPath());
+            return new DevelopKeyEncryptor(Path.GetTempPath());
         }
     }
 
-    public class AzureKeyValueStoreTests : GenericKeyValueStoreTests
+    public class AzureKeyValueStoreTests : GenericKeyEncryptorTests
     {
         protected override IKeyEncryptor CreateSut()
         {
-            return new AzureKeyVaultStore("https://test-kv-alk.vault.azure.net/", "test");
+            return new AzureKeyVaultKeyEncryptor("https://test-kv-alk.vault.azure.net/", "test");
         }
     }
 
-    public class FolderBasedAesKeyValueStoreTests : GenericKeyValueStoreTests
+    public class FolderBasedAesKeyValueStoreTests : GenericKeyEncryptorTests
     {
         protected override IKeyEncryptor CreateSut()
         {
-            return new FolderBasedKeyValueStore(Path.GetTempPath()+ Guid.NewGuid().ToString(), "test");
+            return new FolderBasedKeyEncryptor(Path.GetTempPath()+ Guid.NewGuid().ToString(), "test");
         }
     }
 }

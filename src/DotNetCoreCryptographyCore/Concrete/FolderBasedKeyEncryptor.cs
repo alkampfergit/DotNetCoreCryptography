@@ -12,15 +12,15 @@ namespace DotNetCoreCryptographyCore.Concrete
     /// as key material storage. All keys are stored in the given location but
     /// protected with a password.
     /// </summary>
-    public class FolderBasedKeyValueStore : IKeyEncryptor
+    public class FolderBasedKeyEncryptor : IKeyEncryptor
     {
-        private readonly ConcurrentDictionary<int, EncryptionKey> _keys = new ConcurrentDictionary<int, EncryptionKey>();
+        private readonly ConcurrentDictionary<int, EncryptionKey> _keys = new();
         private EncryptionKey _currentKey;
         private readonly string _keyMaterialFolderStore;
         private readonly string _password;
         private readonly KeyInformation _keyInformation;
-        
-        public FolderBasedKeyValueStore(
+
+        public FolderBasedKeyEncryptor(
             string keyMaterialFolderStore,
             string password)
         {
@@ -39,9 +39,9 @@ namespace DotNetCoreCryptographyCore.Concrete
             }
         }
 
-        private EncryptionKey GetKey(int keyNumber) 
+        private EncryptionKey GetKey(int keyNumber)
         {
-            if (!_keys.TryGetValue(keyNumber, out var key)) 
+            if (!_keys.TryGetValue(keyNumber, out var key))
             {
                 var keyName = Path.Combine(_keyMaterialFolderStore, $"{keyNumber}.key");
                 var encryptedSerializedKey = File.ReadAllBytes(keyName);
@@ -68,7 +68,7 @@ namespace DotNetCoreCryptographyCore.Concrete
             using var destinationMs = new MemoryStream();
             destinationMs.Write(BitConverter.GetBytes(_keyInformation.ActualKeyNumber));
             using var sourceMs = new MemoryStream(key.Serialize());
-            
+
             //we need to generate another IV to avoid encrypting always with the very same value.
             await StaticEncryptor.EncryptAsync(sourceMs, destinationMs, _currentKey).ConfigureAwait(false);
             return destinationMs.ToArray();
@@ -80,7 +80,7 @@ namespace DotNetCoreCryptographyCore.Concrete
         /// </summary>
         public void GenerateNewKey()
         {
-            _keyInformation.ActualKeyNumber += 1;
+            _keyInformation.ActualKeyNumber++;
             var keyName = Path.Combine(_keyMaterialFolderStore, $"{_keyInformation.ActualKeyNumber}.key");
             _currentKey = EncryptionKey.CreateDefault();
             _keys[_keyInformation.ActualKeyNumber] = _currentKey;

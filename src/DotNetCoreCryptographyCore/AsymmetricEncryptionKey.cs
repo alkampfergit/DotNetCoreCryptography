@@ -12,13 +12,12 @@ namespace DotNetCoreCryptographyCore
         public static AsymmetricEncryptionKey CreateFromSerializedVersion(byte[] serializedKey)
         {
             var keyType = (AsymmetricKeyType)serializedKey[0];
-            switch (keyType)
+            return keyType switch
             {
-                case AsymmetricKeyType.Rsa4096: 
-                    return new RsaEncryptionKey(serializedKey);
-                default:
-                    throw new NotSupportedException($"Type of key {keyType} is not supported");
-            }
+                AsymmetricKeyType.Rsa4096 => new RsaEncryptionKey(serializedKey),
+                AsymmetricKeyType.Unknown => throw new NotSupportedException($"Key unknown is not supported"),
+                _ => throw new NotSupportedException($"Type of key {keyType} is not supported"),
+            };
         }
 
         /// <summary>
@@ -44,7 +43,7 @@ namespace DotNetCoreCryptographyCore
         protected bool IsDisposed { get; private set; }
 
         /// <summary>
-        /// Custom IsEqualTo function to compare two key, each concrete 
+        /// Custom IsEqualTo function to compare two key, each concrete
         /// key should implement its own check function.
         /// </summary>
         /// <param name="other"></param>

@@ -24,7 +24,7 @@ namespace DotNetCoreCryptography.Tests.Core
         private SecureEncryptor CreateSut()
         {
             //we could use a mock, but it is simpler for now using a know working store.
-            return new SecureEncryptor(new DevelopKeyValueStore(Path.GetTempPath()));
+            return new SecureEncryptor(new DevelopKeyEncryptor(Path.GetTempPath()));
         }
     }
 }

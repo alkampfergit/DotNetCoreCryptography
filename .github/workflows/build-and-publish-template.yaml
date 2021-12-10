@@ -16,3 +16,6 @@ jobs:
       coverage_info_dir: ./src/DotNetCoreCryptography.Tests/TestResults/coverage.info 
     secrets:
       NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+      AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+      AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}

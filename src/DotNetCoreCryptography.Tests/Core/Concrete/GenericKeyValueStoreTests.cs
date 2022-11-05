@@ -27,7 +27,7 @@ namespace DotNetCoreCryptography.Tests.Core.Concrete
     {
         protected override IKeyEncryptor CreateSut()
         {
-            return new DevelopKeyValueStore(Path.GetTempPath());
+            return new DeveloperKeyEncryptor(Path.GetTempPath());
         }
     }
 
@@ -35,7 +35,7 @@ namespace DotNetCoreCryptography.Tests.Core.Concrete
     {
         protected override IKeyEncryptor CreateSut()
         {
-            return new AzureKeyVaultStore("https://test-kv-alk.vault.azure.net/", "test");
+            return new AzureKeyVaultStoreKeyEncryptor("https://test-kv-alk.vault.azure.net/", "test");
         }
     }
 
@@ -43,7 +43,7 @@ namespace DotNetCoreCryptography.Tests.Core.Concrete
     {
         protected override IKeyEncryptor CreateSut()
         {
-            return new FolderBasedKeyValueStore(Path.GetTempPath()+ Guid.NewGuid().ToString(), "test");
+            return new FolderBasedKeyEncryptor(Path.GetTempPath()+ Guid.NewGuid().ToString(), "test");
         }
     }
 }

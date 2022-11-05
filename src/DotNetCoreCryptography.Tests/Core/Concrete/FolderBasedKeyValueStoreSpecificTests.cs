@@ -21,11 +21,11 @@ namespace DotNetCoreCryptography.Tests.Core.Concrete
         private string _keyMaterialFolder;
         private string _databaseFile;
 
-        private FolderBasedKeyValueStore GenerateSut(string password = "password")
+        private FolderBasedKeyEncryptor GenerateSut(string password = "password")
         {
             _keyMaterialFolder = Path.GetTempPath() + Guid.NewGuid().ToString();
             _databaseFile = Path.Combine(_keyMaterialFolder, "info.json");
-            return new FolderBasedKeyValueStore(
+            return new FolderBasedKeyEncryptor(
                 _keyMaterialFolder,
                 password);
         }
@@ -39,7 +39,7 @@ namespace DotNetCoreCryptography.Tests.Core.Concrete
 
             //We should not be able to create a sut where already exists a key
             //with an invalid password
-            Assert.Throws<CryptographicException>(() => new FolderBasedKeyValueStore(
+            Assert.Throws<CryptographicException>(() => new FolderBasedKeyEncryptor(
                _keyMaterialFolder,
                "another-password"));
         }

@@ -19,7 +19,7 @@ namespace DotNetCoreCryptographyCore.Concrete
         private readonly string _keyMaterialFolderStore;
         private readonly string _password;
         private readonly KeyInformation _keyInformation;
-        
+
         public FolderBasedKeyValueStore(
             string keyMaterialFolderStore,
             string password)
@@ -39,9 +39,9 @@ namespace DotNetCoreCryptographyCore.Concrete
             }
         }
 
-        private EncryptionKey GetKey(int keyNumber) 
+        private EncryptionKey GetKey(int keyNumber)
         {
-            if (!_keys.TryGetValue(keyNumber, out var key)) 
+            if (!_keys.TryGetValue(keyNumber, out var key))
             {
                 var keyName = Path.Combine(_keyMaterialFolderStore, $"{keyNumber}.key");
                 var encryptedSerializedKey = File.ReadAllBytes(keyName);
@@ -68,7 +68,7 @@ namespace DotNetCoreCryptographyCore.Concrete
             using var destinationMs = new MemoryStream();
             destinationMs.Write(BitConverter.GetBytes(_keyInformation.ActualKeyNumber));
             using var sourceMs = new MemoryStream(key.Serialize());
-            
+
             //we need to generate another IV to avoid encrypting always with the very same value.
             await StaticEncryptor.EncryptAsync(sourceMs, destinationMs, _currentKey).ConfigureAwait(false);
             return destinationMs.ToArray();

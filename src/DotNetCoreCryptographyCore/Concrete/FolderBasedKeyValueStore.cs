@@ -1,6 +1,7 @@
 ﻿using DotNetCoreCryptographyCore.Utils;
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
 using System.Threading.Tasks;
@@ -17,8 +18,13 @@ namespace DotNetCoreCryptographyCore.Concrete
         private readonly ConcurrentDictionary<int, EncryptionKey> _keys = new ConcurrentDictionary<int, EncryptionKey>();
         private EncryptionKey _currentKey;
         private readonly string _keyMaterialFolderStore;
+
+        /// <summary>
+        /// If different from empty, will be used to encrypt keys
+        /// that are stored inside the shared folder.
+        /// </summary>
         private readonly string _password;
-        private readonly KeyInformation _keyInformation;
+        private readonly KeysDatabase _keyInformation;
 
         public FolderBasedKeyValueStore(
             string keyMaterialFolderStore,
@@ -39,13 +45,39 @@ namespace DotNetCoreCryptographyCore.Concrete
             }
         }
 
+        private bool KeysAreEncrpted => !string.IsNullOrEmpty(_password);
+
+        private byte[] Encrypt(byte[] key)
+        {
+            if (!String.IsNullOrEmpty(_password))
+            {
+                //use a static shared password to encrypt the data
+                return StaticEncryptor.AesEncryptWithPassword(key, _password);
+            }
+
+            //Key is unencrypted
+            return key;
+        }
+
+        private byte[] Decrypt(byte[] key)
+        {
+            if (!String.IsNullOrEmpty(_password))
+            {
+                //use a static shared password to decrypt the data
+                return StaticEncryptor.AesDecryptWithPassword(key, _password);
+            }
+
+            //Key is unencrypted
+            return key;
+        }
+
         private EncryptionKey GetKey(int keyNumber)
         {
             if (!_keys.TryGetValue(keyNumber, out var key))
             {
                 var keyName = Path.Combine(_keyMaterialFolderStore, $"{keyNumber}.key");
                 var encryptedSerializedKey = File.ReadAllBytes(keyName);
-                var serializedKey = StaticEncryptor.AesDecryptWithPasswordAsync(encryptedSerializedKey, _password).Result;
+                var serializedKey = Decrypt(encryptedSerializedKey);
                 key = EncryptionKey.CreateFromSerializedVersion(serializedKey);
                 _keys[keyNumber] = key;
             }
@@ -84,33 +116,55 @@ namespace DotNetCoreCryptographyCore.Concrete
             var keyName = Path.Combine(_keyMaterialFolderStore, $"{_keyInformation.ActualKeyNumber}.key");
             _currentKey = EncryptionKey.CreateDefault();
             _keys[_keyInformation.ActualKeyNumber] = _currentKey;
+            _keyInformation.KeysInformation[_keyInformation.ActualKeyNumber.ToString()] = new KeyInformation()
+            {
+                Id = _keyInformation.ActualKeyNumber.ToString(),
+                Encrypted = KeysAreEncrpted,
+                CreatonDate = DateTime.UtcNow,
+                Revoked = false,
+            };
+
             var serializedKey = _currentKey.Serialize();
-            var encryptedSerializedKey = StaticEncryptor.AesEncryptWithPasswordAsync(serializedKey, _password).Result;
+            var encryptedSerializedKey = Encrypt(serializedKey);
             File.WriteAllBytes(keyName, encryptedSerializedKey);
             SaveInfo(_keyInformation);
         }
 
-        private KeyInformation LoadInfo()
+        private KeysDatabase LoadInfo()
         {
             var infoFile = GetInfoFileName;
             if (File.Exists(infoFile))
             {
-                return JsonSerializer.Deserialize<KeyInformation>(File.ReadAllText(infoFile));
+                return JsonSerializer.Deserialize<KeysDatabase>(File.ReadAllText(infoFile));
             }
 
-            return new KeyInformation();
+            return new KeysDatabase();
         }
 
-        private void SaveInfo(KeyInformation information)
+        private void SaveInfo(KeysDatabase information)
         {
-            File.WriteAllText(GetInfoFileName, JsonSerializer.Serialize(information));
+            lock (this)
+            {
+                File.WriteAllText(GetInfoFileName, JsonSerializer.Serialize(information));
+            }
         }
 
         private string GetInfoFileName => Path.Combine(_keyMaterialFolderStore, "info.json");
 
-        private class KeyInformation
+        private class KeysDatabase
         {
             public int ActualKeyNumber { get; set; }
+
+            public Dictionary<string, KeyInformation> KeysInformation { get; set; } = new Dictionary<string, KeyInformation>();
+        }
+
+        private class KeyInformation
+        {
+            public string Id { get; set; }
+
+            public Boolean Encrypted { get; set; }
+            public DateTime CreatonDate { get; internal set; }
+            public bool Revoked { get; internal set; }
         }
     }
 }

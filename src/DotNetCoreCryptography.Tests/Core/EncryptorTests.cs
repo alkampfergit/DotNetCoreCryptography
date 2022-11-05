@@ -53,6 +53,23 @@ namespace DotNetCoreCryptography.Tests.Core
             Assert.Equal(stringContent, decrypted);
         }
 
+        public void Can_Encrypt_And_Decrypt_bytes_with_password_non_Async()
+        {
+            const string content = "this test will be encrypted";
+            byte[] stringContent = Encoding.UTF8.GetBytes(content);
+
+            var encrypted = StaticEncryptor.AesEncryptWithPassword(
+                stringContent,
+                Password);
+
+            //Now decrypt
+            var decrypted = StaticEncryptor.AesDecryptWithPassword(
+                encrypted,
+                Password);
+
+            Assert.Equal(stringContent, decrypted);
+        }
+
         [Fact]
         public async Task CanEncryptAndDecryptStreamWithGenericKey()
         {

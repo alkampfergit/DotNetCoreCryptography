@@ -15,12 +15,29 @@ namespace DotNetCoreCryptographyCore
             await sourceStream.CopyToAsync(csEncrypt).ConfigureAwait(false);
         }
 
+        public static void Encrypt(Stream sourceStream, Stream destinationStream, EncryptionKey key)
+        {
+            using var encryptor = key.CreateEncryptor(destinationStream);
+            using CryptoStream csEncrypt = new(destinationStream, encryptor, CryptoStreamMode.Write);
+            sourceStream.CopyTo(csEncrypt);
+        }
+
         public static async Task<String> EncryptAsync(string content, EncryptionKey key)
         {
             var data = Encoding.UTF8.GetBytes(content);
             using var sourceStream = new MemoryStream(data);
             using var destMs = new MemoryStream(data.Length);
-            await EncryptAsync(sourceStream, destMs, key);
+            await EncryptAsync(sourceStream, destMs, key).ConfigureAwait(false);
+
+            return Convert.ToBase64String(destMs.ToArray());
+        }
+
+        public static String Encrypt(string content, EncryptionKey key)
+        {
+            var data = Encoding.UTF8.GetBytes(content);
+            using var sourceStream = new MemoryStream(data);
+            using var destMs = new MemoryStream(data.Length);
+            Encrypt(sourceStream, destMs, key);
 
             return Convert.ToBase64String(destMs.ToArray());
         }
@@ -32,12 +49,28 @@ namespace DotNetCoreCryptographyCore
             await csDecrypt.CopyToAsync(destinationStream).ConfigureAwait(false);
         }
 
+        public static void Decrypt(Stream encryptedStream, Stream destinationStream, EncryptionKey key)
+        {
+            using var decryptor = key.CreateDecryptor(encryptedStream);
+            using CryptoStream csDecrypt = new(encryptedStream, decryptor, CryptoStreamMode.Read);
+            csDecrypt.CopyTo(destinationStream);
+        }
+
         public static async Task<string> DecryptAsync(string encryptedBase64String, EncryptionKey key)
         {
             var data = Convert.FromBase64String(encryptedBase64String);
             using var ms = new MemoryStream(data);
             using var destMs = new MemoryStream();
-            await DecryptAsync(ms, destMs, key);
+            await DecryptAsync(ms, destMs, key).ConfigureAwait(false);
+            return Encoding.UTF8.GetString(destMs.ToArray());
+        }
+
+        public static string Decrypt(string encryptedBase64String, EncryptionKey key)
+        {
+            var data = Convert.FromBase64String(encryptedBase64String);
+            using var ms = new MemoryStream(data);
+            using var destMs = new MemoryStream();
+            Decrypt(ms, destMs, key);
             return Encoding.UTF8.GetString(destMs.ToArray());
         }
 

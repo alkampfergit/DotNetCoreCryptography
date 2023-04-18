@@ -1,6 +1,5 @@
 ﻿using DotNetCoreCryptographyCore;
 using System.IO;
-using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 using Xunit;
@@ -32,7 +31,7 @@ namespace DotNetCoreCryptography.Tests.Core
                 Password).ConfigureAwait(false);
 
             var decryptedString = Encoding.UTF8.GetString(decryptedMemoryStream.ToArray());
-            Assert.Equal(decryptedString, content);
+            Assert.Equal(content, decryptedString);
         }
 
         [Fact]
@@ -53,7 +52,8 @@ namespace DotNetCoreCryptography.Tests.Core
             Assert.Equal(stringContent, decrypted);
         }
 
-        public void Can_Encrypt_And_Decrypt_bytes_with_password_non_Async()
+        [Fact]
+        public void CanEncryptAndDecryptBytesWithPasswordNotAsyncronous()
         {
             const string content = "this test will be encrypted";
             byte[] stringContent = Encoding.UTF8.GetBytes(content);
@@ -86,7 +86,19 @@ namespace DotNetCoreCryptography.Tests.Core
             await StaticEncryptor.DecryptAsync(readingEncryptedStream, decryptedMemoryStream, key).ConfigureAwait(false);
 
             var decryptedString = Encoding.UTF8.GetString(decryptedMemoryStream.ToArray());
-            Assert.Equal(decryptedString, content);
+            Assert.Equal(content, decryptedString);
+        }
+
+        [Fact]
+        public async Task CanEncryptAndDecryptFromBase64String()
+        {
+            const string content = "this test will be encrypted";
+            using var key = new AesEncryptionKey();
+            var encrypted = await StaticEncryptor.EncryptAsync(content, key);
+
+            //Now decrypt
+            var decrypted = await StaticEncryptor.DecryptAsync(encrypted, key);
+            Assert.Equal(content, decrypted);
         }
     }
 }

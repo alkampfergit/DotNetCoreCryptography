@@ -90,6 +90,25 @@ namespace DotNetCoreCryptography.Tests.Core
         }
 
         [Fact]
+        public void CanEncryptAndDecryptStreamWithGenericKeySync()
+        {
+            const string content = "this test will be encrypted";
+            byte[] stringContent = Encoding.UTF8.GetBytes(content);
+            using var sourceStream = new MemoryStream(stringContent);
+            using var encryptedStream = new MemoryStream();
+            using var key = new AesEncryptionKey();
+            StaticEncryptor.Encrypt(sourceStream, encryptedStream, key);
+
+            //Now decrypt
+            var decryptedMemoryStream = new MemoryStream();
+            var readingEncryptedStream = new MemoryStream(encryptedStream.ToArray());
+            StaticEncryptor.Decrypt(readingEncryptedStream, decryptedMemoryStream, key);
+
+            var decryptedString = Encoding.UTF8.GetString(decryptedMemoryStream.ToArray());
+            Assert.Equal(content, decryptedString);
+        }
+
+        [Fact]
         public async Task CanEncryptAndDecryptFromBase64String()
         {
             const string content = "this test will be encrypted";
@@ -98,6 +117,18 @@ namespace DotNetCoreCryptography.Tests.Core
 
             //Now decrypt
             var decrypted = await StaticEncryptor.DecryptAsync(encrypted, key);
+            Assert.Equal(content, decrypted);
+        }
+
+        [Fact]
+        public void CanEncryptAndDecryptFromBase64StringSync()
+        {
+            const string content = "this test will be encrypted";
+            using var key = new AesEncryptionKey();
+            var encrypted = StaticEncryptor.Encrypt(content, key);
+
+            //Now decrypt
+            var decrypted = StaticEncryptor.Decrypt(encrypted, key);
             Assert.Equal(content, decrypted);
         }
     }

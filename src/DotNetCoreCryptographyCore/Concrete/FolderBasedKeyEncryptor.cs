@@ -19,6 +19,8 @@ namespace DotNetCoreCryptographyCore.Concrete
         private EncryptionKey _currentKey;
         private readonly string _keyMaterialFolderStore;
 
+        private readonly object _lock = new object();
+
         /// <summary>
         /// If different from empty, will be used to encrypt keys
         /// that are stored inside the shared folder.
@@ -143,7 +145,7 @@ namespace DotNetCoreCryptographyCore.Concrete
 
         private void SaveInfo(KeysDatabase information)
         {
-            lock (this)
+            lock (_lock)
             {
                 File.WriteAllText(GetInfoFileName, JsonSerializer.Serialize(information));
             }

@@ -51,7 +51,7 @@ namespace DotNetCoreCryptographyCore
             array[0] = (byte) KeyType.Aes256;
             Array.Copy(aes.IV, 0, array, 1, aes.IV.Length);
             Array.Copy(aes.Key, 0, array, 16 + 1, aes.Key.Length);
-            array[array.Length - 1] = (byte) aes.Mode;
+            array[^1] = (byte) aes.Mode;
             return array;
         }
 
@@ -65,7 +65,7 @@ namespace DotNetCoreCryptographyCore
             var keyLength = serializedAes.Length - 16 - 1 - 1;
             aes.IV = new ArraySegment<byte>(serializedAes, 1, 16).ToArray();
             aes.Key = new ArraySegment<byte>(serializedAes, 17, keyLength).ToArray();
-            aes.Mode = (CipherMode)serializedAes[serializedAes.Length - 1];
+            aes.Mode = (CipherMode)serializedAes[^1];
             return aes;
         }
     }

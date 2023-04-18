@@ -82,6 +82,5 @@ namespace DotNetCoreCryptographyCore
             Dispose(disposing: true);
             GC.SuppressFinalize(this);
         }
-
     }
 }

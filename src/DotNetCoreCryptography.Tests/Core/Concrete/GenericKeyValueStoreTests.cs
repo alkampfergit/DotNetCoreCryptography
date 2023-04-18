@@ -1,4 +1,5 @@
-﻿using DotNetCoreCryptographyCore;
+﻿using DotNetCoreCryptography.Azure;
+using DotNetCoreCryptographyCore;
 using DotNetCoreCryptographyCore.Concrete;
 using System;
 using System.IO;
@@ -15,26 +16,34 @@ namespace DotNetCoreCryptography.Tests.Core.Concrete
             using var key = new AesEncryptionKey();
             var sut = CreateSut();
             var encrypted = await sut.EncryptAsync(key).ConfigureAwait(false);
-            var decrypted = await sut.DecriptAsync(encrypted).ConfigureAwait(false);
+            var decrypted = await sut.DecryptAsync(encrypted).ConfigureAwait(false);
             Assert.Equal(key, decrypted);
         }
 
-        protected abstract IKeyVaultStore CreateSut();
+        protected abstract IKeyEncryptor CreateSut();
     }
 
     public class DevelopKeyValueStoreTests : GenericKeyValueStoreTests
     {
-        protected override IKeyVaultStore CreateSut()
+        protected override IKeyEncryptor CreateSut()
         {
-            return new DevelopKeyValueStore(Path.GetTempPath());
+            return new DeveloperKeyEncryptor(Path.GetTempPath());
+        }
+    }
+
+    public class AzureKeyValueStoreTests : GenericKeyValueStoreTests
+    {
+        protected override IKeyEncryptor CreateSut()
+        {
+            return new AzureKeyVaultStoreKeyEncryptor("https://test-kv-alk.vault.azure.net/", "test");
         }
     }
 
     public class FolderBasedAesKeyValueStoreTests : GenericKeyValueStoreTests
     {
-        protected override IKeyVaultStore CreateSut()
+        protected override IKeyEncryptor CreateSut()
         {
-            return new FolderBasedKeyValueStore(Path.GetTempPath()+ Guid.NewGuid().ToString(), "test");
+            return new FolderBasedKeyEncryptor(Path.GetTempPath()+ Guid.NewGuid().ToString(), "test");
         }
     }
 }

@@ -1,5 +1,7 @@
-﻿using System.IO;
+﻿using System;
+using System.IO;
 using System.Security.Cryptography;
+using System.Text;
 using System.Threading.Tasks;
 
 namespace DotNetCoreCryptographyCore
@@ -13,11 +15,30 @@ namespace DotNetCoreCryptographyCore
             await sourceStream.CopyToAsync(csEncrypt).ConfigureAwait(false);
         }
 
+        public static async Task<String> EncryptAsync(string content, EncryptionKey key)
+        {
+            var data = Encoding.UTF8.GetBytes(content);
+            using var sourceStream = new MemoryStream(data);
+            using var destMs = new MemoryStream(data.Length);
+            await EncryptAsync(sourceStream, destMs, key);
+
+            return Convert.ToBase64String(destMs.ToArray());
+        }
+
         public static async Task DecryptAsync(Stream encryptedStream, Stream destinationStream, EncryptionKey key)
         {
             using var decryptor = key.CreateDecryptor(encryptedStream);
             using CryptoStream csDecrypt = new(encryptedStream, decryptor, CryptoStreamMode.Read);
             await csDecrypt.CopyToAsync(destinationStream).ConfigureAwait(false);
+        }
+
+        public static async Task<string> DecryptAsync(string encryptedBase64String, EncryptionKey key)
+        {
+            var data = Convert.FromBase64String(encryptedBase64String);
+            using var ms = new MemoryStream(data);
+            using var destMs = new MemoryStream();
+            await DecryptAsync(ms, destMs, key);
+            return Encoding.UTF8.GetString(destMs.ToArray());
         }
 
         public static async Task AesEncryptWithPasswordAsync(Stream sourceStream, Stream destinationStream, string password)

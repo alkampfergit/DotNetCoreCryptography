@@ -12,7 +12,7 @@ namespace DotNetCoreCryptographyCore
     /// </summary>
     public abstract class EncryptionKey : IDisposable
     {
-        public static EncryptionKey CreateDefault() 
+        public static EncryptionKey CreateDefault()
         {
             return new AesEncryptionKey();
         }

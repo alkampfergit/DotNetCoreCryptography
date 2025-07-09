@@ -35,7 +35,7 @@ namespace DotNetCoreCryptography.Tests.Core.Concrete
         {
             using var key = new AesEncryptionKey();
             var sut = GenerateSut();
-            await sut.EncryptAsync(key).ConfigureAwait(false);
+            await sut.EncryptAsync(key);
 
             //We should not be able to create a sut where already exists a key
             //with an invalid password
@@ -75,11 +75,11 @@ namespace DotNetCoreCryptography.Tests.Core.Concrete
         {
             using var key = new AesEncryptionKey();
             var sut = GenerateSut();
-            await sut.EncryptAsync(key).ConfigureAwait(false);
+            await sut.EncryptAsync(key);
 
             //We will encrypt with the very same key the very same key.
-            var encrypted = await sut.EncryptAsync(key).ConfigureAwait(false);
-            var otherEncrypted = await sut.EncryptAsync(key).ConfigureAwait(false);
+            var encrypted = await sut.EncryptAsync(key);
+            var otherEncrypted = await sut.EncryptAsync(key);
 
             //Same key encrypted two times should generate a different result due to different IV used
             Assert.NotEqual(encrypted, otherEncrypted);
@@ -108,11 +108,11 @@ namespace DotNetCoreCryptography.Tests.Core.Concrete
             using var key = EncryptionKey.CreateDefault();
             var sut = GenerateSut();
 
-            var encrypted = await sut.EncryptAsync(key).ConfigureAwait(false);
+            var encrypted = await sut.EncryptAsync(key);
 
             //We generate a new key, but we are able to decrypt old key.
             sut.GenerateNewKey();
-            var decrypted = await sut.DecryptAsync(encrypted).ConfigureAwait(false);
+            var decrypted = await sut.DecryptAsync(encrypted);
             Assert.Equal(key, decrypted);
         }
 

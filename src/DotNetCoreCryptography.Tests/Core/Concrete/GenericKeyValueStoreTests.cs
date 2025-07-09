@@ -15,8 +15,8 @@ namespace DotNetCoreCryptography.Tests.Core.Concrete
         {
             using var key = new AesEncryptionKey();
             var sut = CreateSut();
-            var encrypted = await sut.EncryptAsync(key).ConfigureAwait(false);
-            var decrypted = await sut.DecryptAsync(encrypted).ConfigureAwait(false);
+            var encrypted = await sut.EncryptAsync(key);
+            var decrypted = await sut.DecryptAsync(encrypted);
             Assert.Equal(key, decrypted);
         }
 

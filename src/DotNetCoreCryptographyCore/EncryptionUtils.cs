@@ -6,10 +6,10 @@ namespace DotNetCoreCryptographyCore
     public static class EncryptionUtils
     {
         public static byte[] GenerateRandomByteArray(int size)
+
         {
-            using var csp = new RNGCryptoServiceProvider();
             byte[] salt = new byte[size];
-            csp.GetBytes(salt);
+            RandomNumberGenerator.Fill(salt);
             return salt;
         }
 
@@ -18,7 +18,7 @@ namespace DotNetCoreCryptographyCore
             string password,
             byte[] salt)
         {
-            using var k1 = new Rfc2898DeriveBytes(password, salt, 1000);
+            using var k1 = new Rfc2898DeriveBytes(password, salt, 100_000, HashAlgorithmName.SHA256);
             var key = k1.GetBytes(32);
             var IV = k1.GetBytes(16);
             return aes.CreateEncryptor(key, IV);
@@ -29,7 +29,7 @@ namespace DotNetCoreCryptographyCore
             string password,
             byte[] salt)
         {
-            using var k1 = new Rfc2898DeriveBytes(password, salt, 1000);
+            using var k1 = new Rfc2898DeriveBytes(password, salt, 100_000, HashAlgorithmName.SHA256);
             var key = k1.GetBytes(32);
             var IV = k1.GetBytes(16);
             return aes.CreateDecryptor(key, IV);

@@ -14,8 +14,8 @@ namespace DotNetCoreCryptography.Tests.Core.Concrete
         {
             using var key = new AesEncryptionKey();
             var sut = new DeveloperKeyEncryptor(Path.GetTempPath() + Guid.NewGuid().ToString());
-            var encrypted = await sut.EncryptAsync(key).ConfigureAwait(false);
-            var decrypted = await sut.DecryptAsync(encrypted).ConfigureAwait(false);
+            var encrypted = await sut.EncryptAsync(key);
+            var decrypted = await sut.DecryptAsync(encrypted);
             Assert.Equal(key, decrypted);
         }
 
@@ -27,11 +27,11 @@ namespace DotNetCoreCryptography.Tests.Core.Concrete
             using var key = new AesEncryptionKey();
 
             var sut = new DeveloperKeyEncryptor(Path.GetTempPath());
-            encrypted = await sut.EncryptAsync(key).ConfigureAwait(false);
+            encrypted = await sut.EncryptAsync(key);
 
             // then decrypt with another instance of the keyvalue store.
             var anotherSut = new DeveloperKeyEncryptor(Path.GetTempPath());
-            var decrypted = await anotherSut.DecryptAsync(encrypted).ConfigureAwait(false);
+            var decrypted = await anotherSut.DecryptAsync(encrypted);
             Assert.Equal(key, decrypted);
         }
     }

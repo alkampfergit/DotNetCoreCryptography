@@ -20,7 +20,7 @@ namespace DotNetCoreCryptography.Tests.Core
         public void Verify_that_serialization_has_byte_mark()
         {
             using var aes = Aes.Create();
-            Assert.Equal(aes.Key.Length, 256 / 8);
+            Assert.Equal(256 / 8, aes.Key.Length);
             var serialized = aes.Serialize();
             Assert.Equal((byte) KeyType.Aes256, serialized[0]);
         }
@@ -29,7 +29,7 @@ namespace DotNetCoreCryptography.Tests.Core
         public void Verify_deserialize_check_byte_mark()
         {
             using var aes = Aes.Create();
-            Assert.Equal(aes.Key.Length, 256 / 8);
+            Assert.Equal(256 / 8, aes.Key.Length);
             var serialized = aes.Serialize();
 
             //Alter type of serialized key, it should throw

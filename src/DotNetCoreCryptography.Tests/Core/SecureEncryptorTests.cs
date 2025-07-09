@@ -25,7 +25,7 @@ namespace DotNetCoreCryptography.Tests.Core
             await sut.Decrypt(sourceEncryptedStream, decryptedStream);
 
             var decryptedContent = Encoding.UTF8.GetString(decryptedStream.ToArray());
-            Assert.Equal(decryptedContent, someContenttoBeEncrypted);
+            Assert.Equal(someContenttoBeEncrypted, decryptedContent);
         }
 
         const string someContenttoBeEncrypted = "this test will be encrypted";

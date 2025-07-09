@@ -3,8 +3,24 @@ param(
     [bool]   $nugetPublish = $false
 )
 
-Install-package BuildUtils -Confirm:$false -Scope CurrentUser -Force
-Import-Module BuildUtils
+# Helper function to check last execution result
+function Assert-LastExecution {
+    param(
+        [string]$message,
+        [bool]$haltExecution = $false
+    )
+    
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error $message
+        if ($haltExecution) {
+            exit $LASTEXITCODE
+        }
+    }
+}
+
+# Removed BuildUtils dependency - using direct GitVersion call instead
+# Install-package BuildUtils -Confirm:$false -Scope CurrentUser -Force
+# Import-Module BuildUtils
 
 $runningDirectory = Split-Path -Parent -Path $MyInvocation.MyCommand.Definition
 
@@ -16,11 +32,33 @@ if (Test-Path $nugetTempDir)
     Remove-Item $nugetTempDir -Recurse -Force
 }
 
-$version = Invoke-Gitversion
-$assemblyVer = $version.assemblyVersion 
-$assemblyFileVersion = $version.assemblyFileVersion
-$nugetPackageVersion = $version.nugetVersion
-$assemblyInformationalVersion = $version.assemblyInformationalVersion
+# Call GitVersion directly instead of using BuildUtils Invoke-Gitversion
+# This fixes the .NET Core 3.1 compatibility issue
+try {
+    $gitVersionOutput = dotnet tool run dotnet-gitversion /nofetch /output json 2>&1
+    if ($LASTEXITCODE -eq 0) {
+        $version = $gitVersionOutput | ConvertFrom-Json
+        $assemblyVer = $version.AssemblyVersion 
+        $assemblyFileVersion = $version.AssemblyFileVersion
+        $nugetPackageVersion = $version.NuGetVersion
+        $assemblyInformationalVersion = $version.AssemblyInformationalVersion
+        Write-Host "GitVersion executed successfully"
+    } else {
+        Write-Warning "GitVersion failed with exit code $LASTEXITCODE. Output: $gitVersionOutput"
+        Write-Warning "Using fallback version values"
+        $assemblyVer = "0.7.0.0"
+        $assemblyFileVersion = "0.7.0.0"
+        $nugetPackageVersion = "0.7.0-dev"
+        $assemblyInformationalVersion = "0.7.0-dev"
+    }
+} catch {
+    Write-Warning "GitVersion execution failed: $($_.Exception.Message)"
+    Write-Warning "Using fallback version values"
+    $assemblyVer = "0.7.0.0"
+    $assemblyFileVersion = "0.7.0.0"
+    $nugetPackageVersion = "0.7.0-dev"
+    $assemblyInformationalVersion = "0.7.0-dev"
+}
 
 Write-host "assemblyInformationalVersion   = $assemblyInformationalVersion"
 Write-host "assemblyVer                    = $assemblyVer"

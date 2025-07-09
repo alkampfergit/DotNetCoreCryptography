@@ -9,6 +9,9 @@
     <RepositoryUrl>https://github.com/alkampfergit/DotNetCoreCryptography</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
 
+    <!-- Enable deterministic builds -->
+    <Deterministic>true</Deterministic>
+    <ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
 
     <!-- Generate symbol packages (.snupkg) -->
     <!-- You must publish both packages, the package that contains the DLL (.nupkg) and the one that contains the symbols (.snupkg) -->

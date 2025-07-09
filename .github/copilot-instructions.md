@@ -16,5 +16,8 @@ This is a project aimed to create some helper class to deal with cryptography in
 - `src/`: Main folder for the source code.
 - `.config`: Folder with .NET tools configuration files.
 - `.github`: Folder with GitHub related files.
+- `src/DotnetCoreCryptographyCore`: Main project runningDirectory
+- `src/DotNetCoreCryptography.Tests`: Project with tests for the main project.
+- `src/DotNetCoreCryptography.Azure`: Implementation of some interface with Azure structures
 
 

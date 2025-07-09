@@ -50,7 +50,24 @@ try {
     $assemblyVer = "0.7.0.0"
 }
 
-$branch = git branch --show-current
+# Try to get branch from GitHub Actions environment variables first
+$branch = $env:GITHUB_HEAD_REF  # For pull requests
+if (-not $branch) {
+    $branch = $env:GITHUB_REF_NAME  # For pushes (GitHub Actions v2+)
+}
+if (-not $branch -and $env:GITHUB_REF) {
+    # Extract branch name from refs/heads/branch-name format
+    $branch = $env:GITHUB_REF -replace '^refs/heads/', ''
+}
+# Fall back to git command for local development
+if (-not $branch) {
+    $branch = git branch --show-current
+}
+# Final fallback to prevent empty branch name
+if (-not $branch) {
+    $branch = "main"
+    Write-Warning "Unable to detect branch name, using fallback: $branch"
+}
 Write-Host "branch is $branch"
 
 Write-Host "Restoring dotnet tools..."

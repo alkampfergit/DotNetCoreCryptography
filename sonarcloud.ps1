@@ -3,8 +3,9 @@ param(
 )
 
 
-Install-package BuildUtils -Confirm:$false -Scope CurrentUser -Force
-Import-Module BuildUtils
+# Removed BuildUtils dependency - using direct GitVersion call instead
+# Install-package BuildUtils -Confirm:$false -Scope CurrentUser -Force
+# Import-Module BuildUtils
 
 $runningDirectory = Split-Path -Parent -Path $MyInvocation.MyCommand.Definition
 
@@ -16,8 +17,11 @@ if (Test-Path $testOutputDir)
     Remove-Item $testOutputDir -Recurse -Force
 }
 
-$version = Invoke-Gitversion
-$assemblyVer = $version.assemblyVersion 
+# Call GitVersion directly instead of using BuildUtils Invoke-Gitversion
+# This fixes the .NET Core 3.1 compatibility issue
+$gitVersionOutput = dotnet tool run dotnet-gitversion /nofetch /nonormalize /output json
+$version = $gitVersionOutput | ConvertFrom-Json
+$assemblyVer = $version.AssemblySemVer 
 
 $branch = git branch --show-current
 Write-Host "branch is $branch"

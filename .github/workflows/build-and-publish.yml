@@ -7,7 +7,6 @@ on:
       - feature/*
       - hotfix/*
       - release/*
-  pull_request: 
 jobs:
   build:
     name: Build

@@ -38,10 +38,10 @@ try {
     $gitVersionOutput = dotnet tool run dotnet-gitversion /nofetch /output json 2>&1
     if ($LASTEXITCODE -eq 0) {
         $version = $gitVersionOutput | ConvertFrom-Json
-        $assemblyVer = $version.AssemblyVersion 
-        $assemblyFileVersion = $version.AssemblyFileVersion
-        $nugetPackageVersion = $version.NuGetVersion
-        $assemblyInformationalVersion = $version.AssemblyInformationalVersion
+        $assemblyVer = $version.AssemblySemVer
+        $assemblyFileVersion = $version.AssemblySemFileVer
+        $nugetPackageVersion = $version.FullSemVer
+        $assemblyInformationalVersion = $version.InformationalVersion
         Write-Host "GitVersion executed successfully"
     } else {
         Write-Warning "GitVersion failed with exit code $LASTEXITCODE. Output: $gitVersionOutput"

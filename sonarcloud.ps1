@@ -65,7 +65,7 @@ if (-not $branch) {
 }
 # Final fallback to prevent empty branch name
 if (-not $branch) {
-    $branch = "main"
+    $branch = "develop"
     Write-Warning "Unable to detect branch name, using fallback: $branch"
 }
 Write-Host "branch is $branch"

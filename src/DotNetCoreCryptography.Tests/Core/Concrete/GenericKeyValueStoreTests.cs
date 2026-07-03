@@ -8,8 +8,25 @@ using Xunit;
 
 namespace DotNetCoreCryptography.Tests.Core.Concrete
 {
-    public abstract class GenericKeyValueStoreTests
+    public abstract class GenericKeyValueStoreTests : IDisposable
     {
+        protected GenericKeyValueStoreTests()
+        {
+            //AZURE_TENANT_ID =#Tenant where the application is installed
+            //AZURE_CLIENT_SECRET =#Client secret for oauth enterprise azure app
+            //AZURE_CLIENT_ID =#Client id for oauth enterprise azure app
+            Environment.SetEnvironmentVariable("AZURE_TENANT_ID", "");    
+            Environment.SetEnvironmentVariable("AZURE_CLIENT_ID", "");    
+            Environment.SetEnvironmentVariable("AZURE_CLIENT_SECRET", "");    
+        }
+
+        public void Dispose()
+        {
+            Environment.SetEnvironmentVariable("AZURE_TENANT_ID", null);
+            Environment.SetEnvironmentVariable("AZURE_CLIENT_ID", null);
+            Environment.SetEnvironmentVariable("AZURE_CLIENT_SECRET", null);
+        }
+
         [Fact]
         public async Task Is_able_to_encrypt_and_decrypt_a_key()
         {

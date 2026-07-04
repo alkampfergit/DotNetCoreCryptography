@@ -52,7 +52,7 @@ namespace DotNetCoreCryptography.Azure
                 // Versioned blob: [magic][ushort keyIdLength][UTF-8 key id][RSA ciphertext].
                 // Decrypt with the exact key version recorded at encryption time.
                 var keyId = ParseVersionedBlob(encryptedKey, out ciphertext);
-                cryptoClient = new CryptographyClient(new Uri(keyId), new DefaultAzureCredential());
+                cryptoClient = new CryptographyClient(keyId, new DefaultAzureCredential());
             }
             else
             {
@@ -128,7 +128,7 @@ namespace DotNetCoreCryptography.Azure
             return blob;
         }
 
-        internal static string ParseVersionedBlob(byte[] blob, out byte[] ciphertext)
+        internal static Uri ParseVersionedBlob(byte[] blob, out byte[] ciphertext)
         {
             if (blob.Length < MagicLength + sizeof(ushort))
             {
@@ -142,8 +142,15 @@ namespace DotNetCoreCryptography.Azure
             }
 
             var keyId = Encoding.UTF8.GetString(blob, MagicLength + sizeof(ushort), keyIdLength);
+            // Fail closed with the same exception type as every other malformed-blob
+            // case instead of letting the Uri constructor throw UriFormatException.
+            if (!Uri.TryCreate(keyId, UriKind.Absolute, out var keyUri))
+            {
+                throw new CryptographicException("Malformed Azure wrapped key blob.");
+            }
+
             ciphertext = blob[ciphertextOffset..];
-            return keyId;
+            return keyUri;
         }
     }
 }

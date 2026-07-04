@@ -21,7 +21,7 @@ namespace DotNetCoreCryptographyCore
     /// subkey  := HKDF-SHA256(ikm = key, salt = salt, info = "DotNetCoreCryptography/AesGcm/v1")
     /// chunk   := [ 4-byte big-endian header ][ ciphertext ][ 16-byte tag ]
     /// header  := plaintext length (64 KiB except final chunk) | 0x80000000 on final chunk
-    /// nonce_i := 0x00_00_00 || 32-bit big-endian chunk counter || final-flag byte
+    /// nonce_i := 0x00 * 7 (zero prefix) || 32-bit big-endian chunk counter || final-flag byte  (12 bytes total)
     /// </code>
     /// <para>
     /// Each <see cref="Encrypt(Stream, Stream, byte[])"/> derives a fresh AES-256

@@ -184,7 +184,10 @@ namespace DotNetCoreCryptographyCore.Concrete
                 }
                 finally
                 {
+                    //Wipe both the copy and the stream's own backing buffer: disposing
+                    //the MemoryStream does not clear its internal plaintext (SEC-8).
                     CryptographicOperations.ZeroMemory(legacySerializedKey);
+                    CryptographicOperations.ZeroMemory(destinationMs.GetBuffer().AsSpan(0, (int)destinationMs.Length));
                 }
             }
             catch (Exception ex)

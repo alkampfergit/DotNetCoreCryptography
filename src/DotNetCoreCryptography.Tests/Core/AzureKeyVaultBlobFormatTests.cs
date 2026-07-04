@@ -24,7 +24,7 @@ namespace DotNetCoreCryptography.Tests.Core
             var blob = AzureKeyVaultStoreKeyEncryptor.BuildVersionedBlob(VersionedKeyId, ciphertext);
             var parsedKeyId = AzureKeyVaultStoreKeyEncryptor.ParseVersionedBlob(blob, out var parsedCiphertext);
 
-            Assert.Equal(VersionedKeyId, parsedKeyId);
+            Assert.Equal(VersionedKeyId, parsedKeyId.AbsoluteUri);
             Assert.Equal(ciphertext, parsedCiphertext);
         }
 
@@ -52,6 +52,16 @@ namespace DotNetCoreCryptography.Tests.Core
             var tooShort = Encoding.ASCII.GetBytes("DNC");
             Assert.Throws<CryptographicException>(
                 () => AzureKeyVaultStoreKeyEncryptor.ParseVersionedBlob(tooShort, out _));
+        }
+
+        [Fact]
+        public void Parse_rejects_non_absolute_key_id()
+        {
+            // A corrupt/malicious blob whose key id is not an absolute URI must fail
+            // closed with CryptographicException, not UriFormatException.
+            var blob = AzureKeyVaultStoreKeyEncryptor.BuildVersionedBlob("keys/test/relative", new byte[] { 1, 2, 3 });
+            Assert.Throws<CryptographicException>(
+                () => AzureKeyVaultStoreKeyEncryptor.ParseVersionedBlob(blob, out _));
         }
     }
 }

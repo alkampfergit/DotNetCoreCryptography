@@ -126,7 +126,19 @@ namespace DotNetCoreCryptographyCore.Concrete
                     throw new CryptographicException("Unknown or unavailable key.");
                 }
                 var serializedKey = Decrypt(encryptedSerializedKey);
-                key = EncryptionKey.CreateFromSerializedVersion(serializedKey);
+                try
+                {
+                    //Wipe the transient plaintext master key once it has been loaded;
+                    //CreateFromSerializedVersion keeps its own copy (SEC-8). When the
+                    //store is passwordless, Decrypt returns encryptedSerializedKey by
+                    //reference, which is a fresh File.ReadAllBytes buffer used nowhere
+                    //else, so zeroing it here is safe.
+                    key = EncryptionKey.CreateFromSerializedVersion(serializedKey);
+                }
+                finally
+                {
+                    CryptographicOperations.ZeroMemory(serializedKey);
+                }
                 _keys[keyNumber] = key;
             }
             return key;
@@ -146,7 +158,15 @@ namespace DotNetCoreCryptographyCore.Concrete
                     using var kek = CryptoFormat.CreateKeyWrapAes(GetKey(keyNumber));
                     var serializedKey = kek.DecryptKeyWrapPadded(
                         encryptedKey.AsSpan(CryptoFormat.MagicLength + sizeof(int)));
-                    return EncryptionKey.CreateFromSerializedVersion(serializedKey);
+                    try
+                    {
+                        //Wipe the transient plaintext DEK after it is copied (SEC-8).
+                        return EncryptionKey.CreateFromSerializedVersion(serializedKey);
+                    }
+                    finally
+                    {
+                        CryptographicOperations.ZeroMemory(serializedKey);
+                    }
                 }
 
                 //legacy v1 blob: [int32 key-number][AES-CBC(serialized key)]. A collision
@@ -157,7 +177,15 @@ namespace DotNetCoreCryptographyCore.Concrete
                 using var sourceMs = new MemoryStream(encryptedKey, sizeof(int), encryptedKey.Length - sizeof(int));
                 using var destinationMs = new MemoryStream();
                 await decryptionKey.DecryptAsync(sourceMs, destinationMs).ConfigureAwait(false);
-                return EncryptionKey.CreateFromSerializedVersion(destinationMs.ToArray());
+                var legacySerializedKey = destinationMs.ToArray();
+                try
+                {
+                    return EncryptionKey.CreateFromSerializedVersion(legacySerializedKey);
+                }
+                finally
+                {
+                    CryptographicOperations.ZeroMemory(legacySerializedKey);
+                }
             }
             catch (Exception ex)
             {

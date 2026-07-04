@@ -150,6 +150,38 @@ gh run list --repo <OWNER/REPO> --branch <branch> --limit 10
 Stop when all checks are terminal. If a check fails, inspect the failed run logs and report the
 failure. If all checks pass, report the final clean state.
 
+## Merging and closing a PR
+
+Only merge or close a PR when explicitly asked. Before merging, verify that the PR is open,
+mergeable, and has terminal successful checks:
+
+```
+gh pr view <PR_NUMBER> --repo <OWNER/REPO> --json state,mergeable,mergeStateStatus,statusCheckRollup
+```
+
+For a rebase merge, use:
+
+```
+gh pr merge <PR_NUMBER> --repo <OWNER/REPO> --rebase --delete-branch
+```
+
+`--rebase` tells GitHub to replay the PR commits onto the base branch. `--delete-branch` deletes the
+remote head branch after the merge. If required checks are still queued or running, wait rather than
+forcing the merge unless the caller explicitly tells you to override repository policy.
+
+After the PR is merged, reconcile the local clone:
+
+```
+git switch <base>
+git pull --ff-only origin <base>
+git fetch --prune
+git branch -d <head-branch>
+```
+
+Use `git branch -d`, not `-D`, so Git refuses to delete a local branch whose commits are not merged.
+If local uncommitted or untracked files exist, preserve them and report them; do not discard them as
+part of PR cleanup.
+
 ## Commits, branches, and pushing
 
 Use local `git` for local repository operations and `gh` for GitHub-hosted state.

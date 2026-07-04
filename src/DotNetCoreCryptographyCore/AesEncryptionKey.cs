@@ -1,6 +1,5 @@
 using System;
 using System.IO;
-using System.Linq;
 using System.Security.Cryptography;
 using System.Threading.Tasks;
 
@@ -149,10 +148,30 @@ namespace DotNetCoreCryptographyCore
 
         public override bool Equals(object obj)
         {
-            return obj is AesEncryptionKey otherKey
-                && otherKey._key.Key.SequenceEqual(_key.Key)
-                && otherKey._key.IV.SequenceEqual(_key.IV)
-                && otherKey._key.Mode == _key.Mode;
+            if (obj is not AesEncryptionKey otherKey)
+            {
+                return false;
+            }
+
+            // Each Key/IV getter allocates a fresh copy of the secret; compare in
+            // constant time (SEC-7) and wipe the copies afterwards (SEC-8).
+            var thisKey = _key.Key;
+            var otherKeyBytes = otherKey._key.Key;
+            var thisIv = _key.IV;
+            var otherIv = otherKey._key.IV;
+            try
+            {
+                return _key.Mode == otherKey._key.Mode
+                    && CryptographicOperations.FixedTimeEquals(thisKey, otherKeyBytes)
+                    && CryptographicOperations.FixedTimeEquals(thisIv, otherIv);
+            }
+            finally
+            {
+                CryptographicOperations.ZeroMemory(thisKey);
+                CryptographicOperations.ZeroMemory(otherKeyBytes);
+                CryptographicOperations.ZeroMemory(thisIv);
+                CryptographicOperations.ZeroMemory(otherIv);
+            }
         }
 
         public override int GetHashCode()

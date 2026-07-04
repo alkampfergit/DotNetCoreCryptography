@@ -61,6 +61,15 @@ and verified (see [Remediated during this engagement](#remediated-during-this-en
 > whitelist and exact blob length; `DeserializeToRsa` now verifies `rsa.KeySize == 4096` after
 > `RSA.Create`, rejecting a strength-downgraded key blob (e.g. a 2048-bit modulus tagged
 > `Rsa4096`). See [`details/SEC-5-…#resolution`](details/SEC-5-key-deserialization-validation.md#resolution).
+>
+> **Update (2026-07-04):** the remaining defense-in-depth findings are fixed. **SEC-7** —
+> secret comparisons (`AesEncryptionKey.Equals`, `RSAParameters.KeyEqual`) now use
+> `CryptographicOperations.FixedTimeEquals`. **SEC-8** — transient plaintext DEK buffers are
+> wiped with `ZeroMemory` on the encrypt/decrypt and Azure paths (RSA `MemoryStream`
+> intermediates remain a documented best-effort limitation). **SEC-9** — key-file access
+> failures are translated to a path-free `CryptographicException`, and the asymmetric
+> deserialization factory now guards null/empty input. See the respective
+> [`details/`](details/README.md) resolutions.
 
 ## Findings summary
 
@@ -78,9 +87,9 @@ tests) under [`details/`](details/README.md): SEC-1..SEC-9 →
 | [SEC-4](#sec-4--unbounded-allocation-from-untrusted-length-medium) | Medium | CWE-789, CWE-400 | Attacker-controlled 32-bit length drives multi-GB pre-allocation (DoS) | ✅ Fixed |
 | [SEC-5](#sec-5--missing-validation-on-key-deserialization-medium) | Medium | CWE-20, CWE-757, CWE-327 | Key deserialization accepts arbitrary cipher mode (incl. ECB), does not enforce key sizes → algorithm/size downgrade | ✅ Fixed |
 | [SEC-6](#sec-6--partial-read-of-iv--salt-medium) | Medium | CWE-241 | Partial `Stream.Read` of IV/salt yields zero-filled key material / silent corruption | ✅ Fixed |
-| [SEC-7](#sec-7--non-constant-time-comparison-of-secrets-low) | Low | CWE-208 | Non-constant-time comparison of secret key material | Open (defense-in-depth) |
-| [SEC-8](#sec-8--key-material-not-zeroized-low) | Low | CWE-316 | Key material not zeroized; lingers on the managed heap | Open (defense-in-depth) |
-| [SEC-9](#sec-9--information-disclosure-via-errors-low) | Low | CWE-209 | Storage path leaked via exceptions; malformed input throws wrong exception type | Open |
+| [SEC-7](#sec-7--non-constant-time-comparison-of-secrets-low) | Low | CWE-208 | Non-constant-time comparison of secret key material | ✅ Fixed |
+| [SEC-8](#sec-8--key-material-not-zeroized-low) | Low | CWE-316 | Key material not zeroized; lingers on the managed heap | ✅ Fixed (best-effort) |
+| [SEC-9](#sec-9--information-disclosure-via-errors-low) | Low | CWE-209 | Storage path leaked via exceptions; malformed input throws wrong exception type | ✅ Fixed |
 
 ---
 
@@ -300,7 +309,7 @@ truncated input instead of proceeding with a partially filled buffer. This also 
 
 ---
 
-### SEC-7 — Non-constant-time comparison of secrets (Low)
+### SEC-7 — Non-constant-time comparison of secrets (Low) — ✅ Fixed
 
 **CWE-208** (Observable Timing Discrepancy).
 
@@ -317,9 +326,14 @@ published cryptographic library.
 **Remediation**
 Use `CryptographicOperations.FixedTimeEquals(ReadOnlySpan<byte>, ReadOnlySpan<byte>)`.
 
+**Resolution**
+Fixed on 2026-07-04. Both comparisons use `FixedTimeEquals`; `System.Linq` was dropped from
+the two files. See
+[`details/SEC-7-…#resolution`](details/SEC-7-non-constant-time-comparison.md#resolution-2026-07-04).
+
 ---
 
-### SEC-8 — Key material not zeroized (Low)
+### SEC-8 — Key material not zeroized (Low) — ✅ Fixed (best-effort)
 
 **CWE-316** (Cleartext Storage of Sensitive Information in Memory).
 
@@ -337,9 +351,14 @@ exploit, hence Low — but relevant hygiene for a library whose sole purpose is 
 Wrap temporary key buffers in `try/finally` with
 `CryptographicOperations.ZeroMemory(Span<byte>)` after use.
 
+**Resolution**
+Fixed (best-effort) on 2026-07-04. Transient DEK buffers are wiped on the encrypt/decrypt and
+Azure paths; the RSA `MemoryStream` intermediates remain a documented limitation. See
+[`details/SEC-8-…#resolution`](details/SEC-8-key-material-not-zeroized.md#resolution-2026-07-04).
+
 ---
 
-### SEC-9 — Information disclosure via errors (Low)
+### SEC-9 — Information disclosure via errors (Low) — ✅ Fixed
 
 **CWE-209** (Generation of Error Message Containing Sensitive Information).
 
@@ -358,6 +377,12 @@ whose message leaks the key-folder path. The public deserialization factories in
 Translate missing/unknown key numbers into a `CryptographicException` that does not include
 the storage path; add `ArgumentNullException.ThrowIfNull` plus a minimum-length check
 throwing `CryptographicException` in the factories.
+
+**Resolution**
+Fixed on 2026-07-04. `FolderBasedKeyEncryptor.GetKey` catches `IOException` and rethrows a
+path-free `CryptographicException`; `AsymmetricEncryptionKey.CreateFromSerializedVersion`
+guards null/empty input (the symmetric factory was already guarded). See
+[`details/SEC-9-…#resolution`](details/SEC-9-error-information-disclosure.md#resolution-2026-07-04).
 
 ---
 
@@ -396,7 +421,7 @@ Refuted during adversarial verification; recorded to prevent re-raising:
 1. **Azure argument validation** — `new Uri()` and the Key Vault SDK already fail fast with named exceptions; missing throw-helpers are ergonomics, not a vulnerability.
 2. **Hardcoded live Azure Key Vault test** — documented in the README (requires `AZURE_*` env vars) and injected in CI; a test-hygiene / DX concern, not a code defect.
 3. **`KeyEqual` timing channel** — not reachable in any security decision, and an RSA private exponent is mathematically determined by `P,Q`, so chosen-prefix enumeration is infeasible.
-4. **Comparing two public-only RSA keys throws `NullReferenceException`** — empirically does **not** throw on net10/C# 14: `byte[].SequenceEqual` binds to the span overload and `null → empty span`. (Fragility note: correctness now depends on C# 14 overload resolution; pinning `LangVersion ≤ 13` would reintroduce the crash — a `FixedTimeEquals`/null-guard fix is advisable.)
+4. **Comparing two public-only RSA keys throws `NullReferenceException`** — empirically does **not** throw on net10/C# 14: `byte[].SequenceEqual` binds to the span overload and `null → empty span`. (Fragility note: correctness previously depended on C# 14 overload resolution; the SEC-7 fix replaced `SequenceEqual` with `CryptographicOperations.FixedTimeEquals`, which handles a null component as an empty span regardless of `LangVersion`, removing that fragility.)
 5. **`Aes.Create()` not disposed in the password methods** — key generation is lazy and these instances are only used via `CreateEncryptor(key, iv)`, so no key material resides in the instance and net10's managed `Aes` holds no native handle; the `ICryptoTransform` is disposed. No security impact.
 
 ## Recommended remediation roadmap
@@ -409,10 +434,10 @@ Refuted during adversarial verification; recorded to prevent re-raising:
 2. **Input-validation hardening** (SEC-4, SEC-5) — ✅ **Done.** SEC-4 (bounded allocation)
    and SEC-5 (AES cipher-mode whitelist + exact lengths, RSA post-create key-size validation)
    are both fixed.
-3. **Defense-in-depth** (SEC-7, SEC-8, SEC-9) — `FixedTimeEquals`, `ZeroMemory`, and
-   `CryptographicException`-typed failures that do not leak storage paths. (The new
-   `AesGcmEncryptionKey` already uses `FixedTimeEquals`, zeroizes its key on dispose, and
-   the new decrypt paths fail uniformly; the pre-existing locations are unchanged.)
+3. **Defense-in-depth** (SEC-7, SEC-8, SEC-9) — ✅ **Done.** `FixedTimeEquals` on all secret
+   comparisons (SEC-7), `ZeroMemory` on transient DEK buffers (SEC-8, best-effort — RSA
+   `MemoryStream` intermediates excepted), and path-free `CryptographicException` failures
+   plus guarded deserialization factories (SEC-9).
 4. **Supply-chain** — SHA-pin all GitHub Actions; enable NuGet auditing and the crypto
    analyzers as build errors.
 

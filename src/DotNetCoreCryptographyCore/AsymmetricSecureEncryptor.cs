@@ -1,6 +1,7 @@
 using System;
 using System.Buffers.Binary;
 using System.IO;
+using System.Security.Cryptography;
 using System.Threading.Tasks;
 
 namespace DotNetCoreCryptographyCore
@@ -32,8 +33,18 @@ namespace DotNetCoreCryptographyCore
             //to encrypt we need to generate a new key
             using var key = EncryptionKey.CreateDefault();
 
-            //now we want to be able to store it securely
-            var encryptedKey = asymmetricKey.Encrypt(key.Serialize());
+            //now we want to be able to store it securely; wipe the plaintext
+            //serialized key once it has been wrapped (SEC-8).
+            var serializedKey = key.Serialize();
+            byte[] encryptedKey;
+            try
+            {
+                encryptedKey = asymmetricKey.Encrypt(serializedKey);
+            }
+            finally
+            {
+                CryptographicOperations.ZeroMemory(serializedKey);
+            }
 
             //write the envelope header, then encrypt binding the header as
             //associated data so it cannot be tampered with.
@@ -72,8 +83,15 @@ namespace DotNetCoreCryptographyCore
 
                     var header = CryptoFormat.BuildV2EnvelopeHeader(wrappedKey);
                     var serializedKey = asymmetricKey.Decrypt(wrappedKey);
-                    using var key = EncryptionKey.CreateFromSerializedVersion(serializedKey);
-                    await key.DecryptAsync(sourceEncryptedStream, destinationDecryptedStream, associatedData: header).ConfigureAwait(false);
+                    try
+                    {
+                        using var key = EncryptionKey.CreateFromSerializedVersion(serializedKey);
+                        await key.DecryptAsync(sourceEncryptedStream, destinationDecryptedStream, associatedData: header).ConfigureAwait(false);
+                    }
+                    finally
+                    {
+                        CryptographicOperations.ZeroMemory(serializedKey);
+                    }
                 }
                 else
                 {
@@ -85,8 +103,15 @@ namespace DotNetCoreCryptographyCore
                     await sourceEncryptedStream.ReadExactlyAsync(wrappedKey).ConfigureAwait(false);
 
                     var serializedKey = asymmetricKey.Decrypt(wrappedKey);
-                    using var key = EncryptionKey.CreateFromSerializedVersion(serializedKey);
-                    await key.DecryptAsync(sourceEncryptedStream, destinationDecryptedStream).ConfigureAwait(false);
+                    try
+                    {
+                        using var key = EncryptionKey.CreateFromSerializedVersion(serializedKey);
+                        await key.DecryptAsync(sourceEncryptedStream, destinationDecryptedStream).ConfigureAwait(false);
+                    }
+                    finally
+                    {
+                        CryptographicOperations.ZeroMemory(serializedKey);
+                    }
                 }
             }
             catch (Exception ex)

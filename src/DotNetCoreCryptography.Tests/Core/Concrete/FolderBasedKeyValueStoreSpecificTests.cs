@@ -2,6 +2,7 @@
 using DotNetCoreCryptographyCore.Concrete;
 using Newtonsoft.Json;
 using System;
+using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.IO;
 using System.Security.Cryptography;
@@ -90,6 +91,25 @@ namespace DotNetCoreCryptography.Tests.Core.Concrete
                     await Assert.ThrowsAsync<CryptographicException>(() => sut.DecryptAsync(tampered));
                 }
             }
+        }
+
+        [Fact]
+        public async Task Decrypt_with_unknown_key_number_does_not_leak_path()
+        {
+            //a blob pointing at a key number with no .key file on disk must fail with
+            //a CryptographicException that does not expose the key-storage path (SEC-9).
+            using var key = EncryptionKey.CreateDefault();
+            var sut = GenerateSut();
+            var wrapped = await sut.EncryptAsync(key);
+
+            //the key number lives right after the 4-byte v2 magic; point it at a
+            //number that was never generated.
+            BinaryPrimitives.WriteInt32LittleEndian(wrapped.AsSpan(4), 9999);
+
+            var ex = await Assert.ThrowsAsync<CryptographicException>(() => sut.DecryptAsync(wrapped));
+            var rendered = ex.ToString();
+            Assert.DoesNotContain(_keyMaterialFolder, rendered);
+            Assert.DoesNotContain("9999.key", rendered);
         }
 
         [Fact]

@@ -6,8 +6,9 @@
 | **Severity** | Low (defense-in-depth) |
 | **CWE** | [CWE-208](https://cwe.mitre.org/data/definitions/208.html) (Observable Timing Discrepancy) |
 | **Component** | `AesEncryptionKey.Equals`, `AsymmetricEncryptionUtils.KeyEqual` |
-| **Status** | Open |
+| **Status** | Fixed |
 | **Analysis date** | 2026-07-03 |
+| **Fixed date** | 2026-07-04 |
 | **Commit** | `9b0f088` |
 
 Parent report: [`../2026-07-03-security-review.md`](../2026-07-03-security-review.md).
@@ -96,6 +97,19 @@ static bool Eq(byte[]? a, byte[]? b) =>
 independent of the contents and also removes the `System.Linq` dependency. Pair with
 [SEC-8](SEC-8-key-material-not-zeroized.md) to wipe the temporary copies afterwards, and
 reconsider whether public value-equality over secret keys should be exposed at all.
+
+## Resolution (2026-07-04)
+
+- `AesEncryptionKey.Equals` now compares key and IV with
+  `CryptographicOperations.FixedTimeEquals` and wipes the transient getter copies in a
+  `finally` (also addressing [SEC-8](SEC-8-key-material-not-zeroized.md)).
+- `AsymmetricEncryptionUtils.KeyEqual` compares every `RSAParameters` component with
+  `FixedTimeEquals` via a small `FixedTimeEqual` helper; a null component (public-only
+  parameters) converts to an empty span, so a null/non-null mismatch fails the length check
+  without a timing signal.
+- The `System.Linq` dependency was removed from both files. Existing tests
+  (`Can_serialize_and_deserialize_key`, `Export_only_public_key`) exercise both the
+  equal-key and public-only comparison paths.
 
 ## References
 

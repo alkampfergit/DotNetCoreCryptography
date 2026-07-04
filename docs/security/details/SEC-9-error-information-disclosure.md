@@ -6,8 +6,9 @@
 | **Severity** | Low |
 | **CWE** | [CWE-209](https://cwe.mitre.org/data/definitions/209.html) (Generation of Error Message Containing Sensitive Information), [CWE-20](https://cwe.mitre.org/data/definitions/20.html) (Improper Input Validation) |
 | **Component** | `FolderBasedKeyEncryptor`, `EncryptionKey`, `AsymmetricEncryptionKey` |
-| **Status** | Open |
+| **Status** | Fixed |
 | **Analysis date** | 2026-07-03 |
+| **Fixed date** | 2026-07-04 |
 | **Commit** | `9b0f088` |
 
 Parent report: [`../2026-07-03-security-review.md`](../2026-07-03-security-review.md).
@@ -132,6 +133,23 @@ Also read the 4-byte key number with `ReadExactly`/`BinaryPrimitives` rather tha
   whose message contains no filesystem path.
 - `CreateFromSerializedVersion(null)` and `CreateFromSerializedVersion(Array.Empty<byte>())`
   throw `ArgumentNullException` / `CryptographicException` respectively.
+
+## Resolution (2026-07-04)
+
+- **Path disclosure.** `FolderBasedKeyEncryptor.GetKey` now wraps the
+  `EnsureOwnerOnlyPermissions` + `File.ReadAllBytes` sequence in a `try`/`catch (IOException)`
+  (the base type of `FileNotFoundException`/`DirectoryNotFoundException`) and rethrows a
+  path-free `CryptographicException("Unknown or unavailable key.")`. This covers both the
+  attacker-facing `DecryptAsync` path and construction. `DecryptAsync` already reads the key
+  number with `BinaryPrimitives` (not an unchecked `Stream.Read`) and normalises all failures
+  through `CryptoFormat.DecryptionFailed`.
+- **Ungraceful failures.** `AsymmetricEncryptionKey.CreateFromSerializedVersion` now calls
+  `ArgumentNullException.ThrowIfNull` and throws `CryptographicException` on an empty array,
+  matching `EncryptionKey.CreateFromSerializedVersion` (already guarded).
+
+Tests added: `Decrypt_with_unknown_key_number_does_not_leak_path` (asserts the rendered
+exception contains neither the storage folder nor `9999.key`), plus
+`CreateFromSerializedVersion_rejects_null` / `_rejects_empty`.
 
 ## References
 

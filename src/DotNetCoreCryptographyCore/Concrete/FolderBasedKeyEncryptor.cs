@@ -112,8 +112,19 @@ namespace DotNetCoreCryptographyCore.Concrete
             if (!_keys.TryGetValue(keyNumber, out var key))
             {
                 var keyName = Path.Combine(_keyMaterialFolderStore, $"{keyNumber}.key");
-                InternalUtils.EnsureOwnerOnlyPermissions(keyName);
-                var encryptedSerializedKey = File.ReadAllBytes(keyName);
+                byte[] encryptedSerializedKey;
+                try
+                {
+                    InternalUtils.EnsureOwnerOnlyPermissions(keyName);
+                    encryptedSerializedKey = File.ReadAllBytes(keyName);
+                }
+                catch (IOException)
+                {
+                    // FileNotFound/DirectoryNotFound derive from IOException and their
+                    // messages embed the on-disk key path; translate to a path-free
+                    // CryptographicException so callers cannot learn the storage layout (SEC-9).
+                    throw new CryptographicException("Unknown or unavailable key.");
+                }
                 var serializedKey = Decrypt(encryptedSerializedKey);
                 key = EncryptionKey.CreateFromSerializedVersion(serializedKey);
                 _keys[keyNumber] = key;

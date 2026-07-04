@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Security.Cryptography;
 
 namespace DotNetCoreCryptographyCore
 {
@@ -11,6 +12,11 @@ namespace DotNetCoreCryptographyCore
     {
         public static AsymmetricEncryptionKey CreateFromSerializedVersion(byte[] serializedKey)
         {
+            ArgumentNullException.ThrowIfNull(serializedKey);
+            if (serializedKey.Length == 0)
+            {
+                throw new CryptographicException("Serialized key is empty");
+            }
             var keyType = (AsymmetricKeyType)serializedKey[0];
             switch (keyType)
             {

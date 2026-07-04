@@ -6,8 +6,9 @@
 | **Severity** | Low (defense-in-depth) |
 | **CWE** | [CWE-316](https://cwe.mitre.org/data/definitions/316.html) (Cleartext Storage of Sensitive Information in Memory), CWE-226 (Sensitive Information Uncleared Before Release) |
 | **Component** | `AsymmetricSecureEncryptor`, `AsymmetricEncryptionUtils`, `EncryptionUtils`, `AzureKeyVaultStoreKeyEncryptor` |
-| **Status** | Open |
+| **Status** | Fixed (best-effort) |
 | **Analysis date** | 2026-07-03 |
+| **Fixed date** | 2026-07-04 |
 | **Commit** | `9b0f088` |
 
 Parent report: [`../2026-07-03-security-review.md`](../2026-07-03-security-review.md).
@@ -103,6 +104,28 @@ robust long-term direction is to minimise the number of managed copies of key ma
 
 Difficult to unit-test deterministically; verify by code review that every path producing a
 plaintext key buffer has a corresponding `ZeroMemory` in a `finally`.
+
+## Resolution (2026-07-04)
+
+Transient plaintext DEK buffers are now wiped with `CryptographicOperations.ZeroMemory` in a
+`finally` on the paths that produce them:
+
+- `FolderBasedKeyEncryptor.EncryptAsync` / `GenerateNewKey` — the `key.Serialize()` buffer
+  (already in place from the SEC-1/SEC-3 work).
+- `CryptoFormat.CreateKeyWrapAes` — the raw key material loaded for AES-KWP (already in place).
+- `AsymmetricSecureEncryptor.Encrypt` — the serialized key before wrapping; `Decrypt` — the
+  unwrapped serialized key after `CreateFromSerializedVersion` copies it out (both branches).
+- `AzureKeyVaultStoreKeyEncryptor.EncryptAsync` — the serialized key; `DecryptAsync` — the
+  `result.Plaintext` DEK returned by Key Vault.
+- `AesEncryptionKey.Equals` — the key/IV getter copies (shared with the
+  [SEC-7](SEC-7-non-constant-time-comparison.md) fix).
+
+**Residual (accepted):** the RSA parameter arrays produced by `ExportParameters(true)` and the
+`MemoryStream`/`ToArray()` intermediates in `AsymmetricEncryptionUtils.Serialize` /
+`DeserializeToRsa` are not individually scrubbed — `MemoryStream` does not expose its backing
+buffer for wiping. As the finding notes, zeroization is inherently best-effort under a
+compacting GC; eliminating these copies would require a pinned/rented-buffer rewrite of the
+RSA format, disproportionate to a Low finding. Left as a known limitation.
 
 ## References
 

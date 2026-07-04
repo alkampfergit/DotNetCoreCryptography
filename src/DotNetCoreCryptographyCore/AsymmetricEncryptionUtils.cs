@@ -1,6 +1,5 @@
 ﻿using System;
 using System.IO;
-using System.Linq;
 using System.Security.Cryptography;
 
 namespace DotNetCoreCryptographyCore
@@ -12,16 +11,24 @@ namespace DotNetCoreCryptographyCore
         private const int MaxRsaExponentBytes = 8;
         private const string InvalidSerializedRsaKeyMessage = "Serialized RSA key is invalid";
 
-        public static bool KeyEqual(this RSAParameters p1, RSAParameters p2) 
+        public static bool KeyEqual(this RSAParameters p1, RSAParameters p2)
         {
-            return p1.D.SequenceEqual(p2.D)
-                && p1.DP.SequenceEqual(p2.DP)
-                && p1.DQ.SequenceEqual(p2.DQ)
-                && p1.Exponent.SequenceEqual(p2.Exponent)
-                && p1.Modulus.SequenceEqual(p2.Modulus)
-                && p1.P.SequenceEqual(p2.P)
-                && p1.Q.SequenceEqual(p2.Q)
-                && p1.InverseQ.SequenceEqual(p2.InverseQ);
+            // Constant-time comparison of secret key material (SEC-7). A null
+            // component (public-only parameters) converts to an empty span, so a
+            // null/non-null mismatch fails the length check without leaking timing.
+            return FixedTimeEqual(p1.D, p2.D)
+                && FixedTimeEqual(p1.DP, p2.DP)
+                && FixedTimeEqual(p1.DQ, p2.DQ)
+                && FixedTimeEqual(p1.Exponent, p2.Exponent)
+                && FixedTimeEqual(p1.Modulus, p2.Modulus)
+                && FixedTimeEqual(p1.P, p2.P)
+                && FixedTimeEqual(p1.Q, p2.Q)
+                && FixedTimeEqual(p1.InverseQ, p2.InverseQ);
+        }
+
+        private static bool FixedTimeEqual(byte[] a, byte[] b)
+        {
+            return CryptographicOperations.FixedTimeEquals(a, b);
         }
 
         /// <summary>

@@ -27,7 +27,7 @@ namespace DotNetCoreCryptography.Tests.Core
             using var destinationDecryptedStream = new MemoryStream();
             await AsymmetricSecureEncryptor.Decrypt(key, sourceEncryptedStream, destinationDecryptedStream);
             var decryptedContent = Encoding.UTF8.GetString(destinationDecryptedStream.ToArray());
-            Assert.Equal(decryptedContent, someContenttoBeEncrypted);
+            Assert.Equal(someContenttoBeEncrypted, decryptedContent);
         }
 
         const string someContenttoBeEncrypted = "this test will be encrypted with asymmetric key";

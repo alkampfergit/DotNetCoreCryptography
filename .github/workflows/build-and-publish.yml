@@ -7,37 +7,140 @@ on:
       - feature/*
       - hotfix/*
       - release/*
+
+# Least privilege: this workflow only needs to read the repository.
+permissions:
+  contents: read
+
 jobs:
-  build:
-    name: Build
-    runs-on: windows-latest
+  # Build and run the test suite in parallel on Linux and Windows. The SEC-3
+  # key-storage behavior deliberately diverges by OS (DPAPI on Windows, file
+  # permissions + explicit opt-in on Unix), so both platforms must be exercised.
+  build-test:
+    name: Build & Test (${{ matrix.os }})
+    strategy:
+      # Run both OSes to completion even if one fails, for full diagnostics.
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    # checks: write is required by the test-reporter to publish the per-test
+    # Check run; scoped to this job so the rest of the workflow stays read-only.
+    permissions:
+      contents: read
+      checks: write
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Setup dotnet 6
-        uses: actions/setup-dotnet@v1
+      # 8.0.x runs the .NET tools; 10.0.x builds and tests the solution.
+      - name: Setup dotnet
+        uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: 6.0.x
+          dotnet-version: |
+            8.0.x
+            10.0.x
 
-      - name: Setup dotnet 8
-        uses: actions/setup-dotnet@v1
-        with:
-          dotnet-version: 8.0.x
-
-      - name: build and publish
+      - name: Build and test
+        # pwsh runs the same script on both Linux and Windows runners.
+        shell: pwsh
         env:
-          AZURE_CLIENT_ID:  ${{ secrets.AZURE_CLIENT_ID }}
-          AZURE_CLIENT_SECRET:  ${{ secrets.AZURE_CLIENT_SECRET }}
-          AZURE_TENANT_ID:  ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+        # Test-only: no pack/publish here so the packaging stage runs exactly once.
+        run: ./build.ps1 -runTests $true -runPack $false
+
+      # Surface skipped/ignored tests as GitHub warning annotations so they are
+      # never silently lost (e.g. the Azure Key Vault integration test skipped when
+      # credentials are absent). The dorny report below also shows them as skipped.
+      - name: Warn on skipped tests
+        if: always()
+        shell: pwsh
+        env:
+          OS_NAME: ${{ matrix.os }}
+        run: |
+          $trx = Get-ChildItem -Path "src/DotNetCoreCryptography.Tests/TestResults" -Filter *.trx -Recurse -ErrorAction SilentlyContinue |
+                 Sort-Object LastWriteTime | Select-Object -Last 1
+          if (-not $trx) { exit 0 }
+          [xml]$doc = Get-Content -Path $trx.FullName
+          foreach ($r in $doc.TestRun.Results.UnitTestResult) {
+              # TRX marks a skipped test as "NotExecuted".
+              if ($r.outcome -eq 'NotExecuted') {
+                  $reason = $r.Output.ErrorInfo.Message
+                  if (-not $reason) { $reason = 'no reason recorded' }
+                  $reason = ($reason -replace '\s+', ' ').Trim()
+                  Write-Host "::warning title=Test skipped ($env:OS_NAME)::$($r.testName) was skipped: $reason"
+              }
+          }
+
+      # Publish a full per-test report (grouped, expandable) as a GitHub Check and
+      # in the run's job summary. Runs even when tests fail so the report is always
+      # available; the failing test step above still fails the job. fail-on-error is
+      # off so a reporting hiccup never masks or fabricates a build result.
+      - name: Test report (${{ matrix.os }})
+        # Pinned to a full commit SHA: third-party action tags are mutable and could
+        # be repointed at malicious code (SonarCloud S7637).
+        uses: dorny/test-reporter@a43b3a5f7366b97d083190328d2c652e1a8b6aa2 # v3.0.0
+        if: always()
+        with:
+          name: Tests (${{ matrix.os }})
+          path: src/DotNetCoreCryptography.Tests/TestResults/*.trx
+          reporter: dotnet-trx
+          fail-on-error: false
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ matrix.os }}
+          path: src/DotNetCoreCryptography.Tests/TestResults/*.trx
+          if-no-files-found: warn
+
+      - name: Publish coverage report to coveralls.io
+        # Upload from a single OS so coveralls receives one report, not two.
+        if: matrix.os == 'ubuntu-latest'
+        # Pinned to a full commit SHA: third-party action tags are mutable and could
+        # be repointed at malicious code (SonarCloud S7637).
+        uses: coverallsapp/github-action@5cbfd81b66ca5d10c19b062c04de0199c215fb6e # v2.3.7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          file: ./src/DotNetCoreCryptography.Tests/TestResults/coverage.info
+          format: lcov
+
+  # Pack and (on release refs) publish to NuGet. Runs only after both test jobs
+  # succeed, on a single Windows runner, so a package is never built or shipped
+  # from an untested commit and never published twice.
+  publish:
+    name: Pack & Publish
+    needs: build-test
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # 8.0.x runs the .NET tools (dotnet-gitversion targets net8.0);
+      # 10.0.x builds and packs the solution.
+      - name: Setup dotnet
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
+
+      - name: Pack and publish
+        env:
+          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
         shell: powershell
         run: |
           dotnet tool restore
-          ./build.ps1 -nugetPublish $true -nugetApiKey ${{ secrets.NUGET_API_KEY }}
-
-      - name: Publish coverage report to coveralls.io
-        uses: coverallsapp/github-action@master
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          path-to-lcov: ./src/DotNetCoreCryptography.Tests/TestResults/coverage.info 
+          # Tests already passed on both OSes above, so pack only (no re-test).
+          # Every branch is packed, but only release-worthy refs publish to
+          # nuget.org. Publishing is irreversible (packages cannot be deleted), so
+          # feature/hotfix/develop pushes must never ship unreviewed packages.
+          $ref = "${{ github.ref }}"
+          $publish = ($ref -eq "refs/heads/master") -or ($ref -like "refs/heads/release/*")
+          Write-Host "Ref '$ref' -> publish to NuGet: $publish"
+          ./build.ps1 -nugetPublish $publish -nugetApiKey $env:NUGET_API_KEY -runTests $false -runPack $true

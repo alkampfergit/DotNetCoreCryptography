@@ -1,7 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
     <ProjectGuid>70F31DD8-AFD5-4353-B109-045481B8A93C</ProjectGuid>
     <PackageProjectUrl>https://github.com/alkampfergit/DotNetCoreCryptography</PackageProjectUrl>
     <Title>Dot Net Core Cryptograpy</Title>
@@ -34,6 +33,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- DPAPI for at-rest protection of the developer master key on Windows.
+         The package is a no-op reference on non-Windows targets; the code guards
+         all usages with OperatingSystem.IsWindows(). -->
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" />
     <PackageReference Include="Microsoft.SourceLink.GitHub">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>

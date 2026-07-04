@@ -70,12 +70,48 @@ if (-not $branch) {
 }
 Write-Host "branch is $branch"
 
+# Decide between pull-request analysis and branch analysis. SonarCloud treats the
+# two as mutually exclusive: if sonar.branch.name is set, the run is a BRANCH
+# analysis and never shows up under Pull Requests (nor decorates the PR). On a
+# pull_request CI run we therefore pass sonar.pullrequest.* (key/source/target)
+# instead, so SonarCloud performs PR analysis. PR number comes from GITHUB_REF,
+# which is 'refs/pull/<n>/merge' for pull_request events.
+$prNumber = $null
+if ($env:GITHUB_REF -match '^refs/pull/(\d+)/') { $prNumber = $Matches[1] }
+
+if ($env:GITHUB_EVENT_NAME -eq 'pull_request' -and $prNumber) {
+    Write-Host "Pull-request analysis: PR #$prNumber ($env:GITHUB_HEAD_REF -> $env:GITHUB_BASE_REF)"
+    $sonarScopeArgs = @(
+        "/d:sonar.pullrequest.key=$prNumber",
+        "/d:sonar.pullrequest.branch=$env:GITHUB_HEAD_REF",
+        "/d:sonar.pullrequest.base=$env:GITHUB_BASE_REF"
+    )
+}
+else {
+    Write-Host "Branch analysis: $branch"
+    $sonarScopeArgs = @("/d:sonar.branch.name=$branch")
+}
+
 Write-Host "Restoring dotnet tools..."
 dotnet tool restore
 Assert-LastExecution -message "Error restoring dotnet tools." -haltExecution $true
 
 Write-Host "Starting SonarCloud analysis..."
-dotnet tool run dotnet-sonarscanner begin /k:"alkampfergit_DotNetCoreCryptography" /v:"$assemblyVer" /o:"alkampfergit-github" /d:sonar.login="$sonarSecret" /d:sonar.host.url="https://sonarcloud.io" /d:sonar.cs.vstest.reportsPaths=TestResults/*.trx /d:sonar.cs.opencover.reportsPaths=TestResults/*/coverage.opencover.xml /d:sonar.coverage.exclusions="**Test*.cs" /d:sonar.branch.name="$branch"
+# Array form so the mutually-exclusive scope args (branch vs pull request) can be
+# selected at runtime. PowerShell passes each element as a separate argument and
+# does not glob the wildcard report paths.
+$beginArgs = @(
+    "begin",
+    "/k:alkampfergit_DotNetCoreCryptography",
+    "/v:$assemblyVer",
+    "/o:alkampfergit-github",
+    "/d:sonar.login=$sonarSecret",
+    "/d:sonar.host.url=https://sonarcloud.io",
+    "/d:sonar.cs.vstest.reportsPaths=TestResults/*.trx",
+    "/d:sonar.cs.opencover.reportsPaths=TestResults/*/coverage.opencover.xml",
+    "/d:sonar.coverage.exclusions=**Test*.cs"
+) + $sonarScopeArgs
+dotnet tool run dotnet-sonarscanner $beginArgs
 Assert-LastExecution -message "Error starting SonarCloud analysis. Please check your SONAR_TOKEN and network connectivity." -haltExecution $true
 
 Write-Host "Restoring packages..."

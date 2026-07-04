@@ -28,5 +28,33 @@ namespace DotNetCoreCryptography.Tests.Core
             using var rsaDeserialized = serialied.DeserializeToRsa(out var _);
             Assert.True(rsa.ExportParameters(true).KeyEqual(rsaDeserialized.ExportParameters(true)));
         }
+
+        [Theory]
+        [InlineData(int.MaxValue)]
+        [InlineData(int.MinValue)]
+        [InlineData(0)]
+        public void DeserializeToRsaRejectsInvalidExponentLengthBeforeAllocating(int length)
+        {
+            var serialized = new byte[1 + 1 + sizeof(int)];
+            serialized[0] = (byte)AsymmetricKeyType.Rsa4096;
+            serialized[1] = 0;
+            BitConverter.GetBytes(length).CopyTo(serialized, 2);
+
+            Assert.Throws<CryptographicException>(() => serialized.DeserializeToRsa(out var _));
+        }
+
+        [Fact]
+        public void DeserializeToRsaRejectsTruncatedComponent()
+        {
+            var serialized = new byte[]
+            {
+                (byte)AsymmetricKeyType.Rsa4096,
+                0,
+                3, 0, 0, 0,
+                1
+            };
+
+            Assert.Throws<CryptographicException>(() => serialized.DeserializeToRsa(out var _));
+        }
     }
 }

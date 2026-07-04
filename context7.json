@@ -1,0 +1,29 @@
+{
+  "$schema": "https://context7.com/schema/context7.json",
+  "projectTitle": "DotNetCoreCryptography",
+  "description": "A .NET library for authenticated symmetric encryption, envelope encryption, key wrapping, and Azure Key Vault-backed key protection.",
+  "folders": [
+    ".",
+    "wiki"
+  ],
+  "excludeFolders": [
+    ".git",
+    ".claude",
+    ".github",
+    "src/.idea",
+    "src/**/bin",
+    "src/**/obj",
+    "src/DotNetCoreCryptography.Tests",
+    "docs/security"
+  ],
+  "excludeFiles": [
+    "ReleaseNotes.md"
+  ],
+  "rules": [
+    "Prefer SecureEncryptor with an IKeyEncryptor for application payload encryption.",
+    "Use EncryptionKey.CreateDefault for new symmetric keys; it currently creates AES-256-GCM keys.",
+    "Use DeveloperKeyEncryptor only for local development because its master key is stored in cleartext.",
+    "Prefer Azure Key Vault or another external KEK provider for production key protection.",
+    "Treat legacy AES-CBC APIs as compatibility-only and do not use them for new data."
+  ]
+}

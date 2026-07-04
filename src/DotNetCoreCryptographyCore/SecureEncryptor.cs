@@ -1,5 +1,6 @@
-﻿using System.IO;
-using System.Security.Cryptography;
+using System;
+using System.Buffers.Binary;
+using System.IO;
 using System.Threading.Tasks;
 
 namespace DotNetCoreCryptographyCore
@@ -13,6 +14,12 @@ namespace DotNetCoreCryptographyCore
     /// It will use by default a new <see cref="EncryptionKey"/> each
     /// time to guarantee maximum security.
     /// </para>
+    /// <para>
+    /// Envelope format v2: <c>[magic][int32 wrapped-key length][wrapped key][AES-GCM payload]</c>.
+    /// The whole header is authenticated as associated data of the payload, so any
+    /// modification of the envelope — header included — makes decryption fail.
+    /// Streams produced by previous versions (v1, AES-CBC) are still decrypted.
+    /// </para>
     /// </summary>
     public class SecureEncryptor
     {
@@ -24,8 +31,8 @@ namespace DotNetCoreCryptographyCore
         }
 
         /// <summary>
-        /// Encrypt a stream generating a symmetric key, then encrypt with 
-        /// a <see cref="IKeyVaultStore"/> and store the encrypted key in destination 
+        /// Encrypt a stream generating a symmetric key, then encrypt with
+        /// a <see cref="IKeyEncryptor"/> and store the encrypted key in destination
         /// stream.
         /// </summary>
         /// <param name="streamToEncrypt"></param>
@@ -37,44 +44,59 @@ namespace DotNetCoreCryptographyCore
             using var key = EncryptionKey.CreateDefault();
 
             //now we want to be able to store it securely
-            var encrypted = await _keyVaultStore.EncryptAsync(key).ConfigureAwait(false);
+            var encryptedKey = await _keyVaultStore.EncryptAsync(key).ConfigureAwait(false);
 
-            //now we need to generate an output stream that contains both the key and the real 
-            //encrypted content, we start writing the size of the encrypted key
-            using (var bw = new BinaryWriter(destinationStream))
-            {
-                bw.Write(encrypted.Length);
-
-                //now write the key encrypted
-                bw.Write(encrypted);
-                bw.Flush();
-
-                //now use the key to encrypt the rest
-                using var encryptor = key.CreateEncryptor(destinationStream);
-                using CryptoStream csEncrypt = new(destinationStream, encryptor, CryptoStreamMode.Write);
-                await streamToEncrypt.CopyToAsync(csEncrypt).ConfigureAwait(false);
-            }
+            //write the envelope header, then encrypt binding the header as
+            //associated data so it cannot be tampered with.
+            var header = CryptoFormat.BuildV2EnvelopeHeader(encryptedKey);
+            await destinationStream.WriteAsync(header).ConfigureAwait(false);
+            await key.EncryptAsync(streamToEncrypt, destinationStream, associatedData: header).ConfigureAwait(false);
         }
 
         /// <summary>
         /// Decrypt a stream encrypted by <see cref="Encrypt(Stream, Stream)"/> method. Encrypted
         /// stream contains an header that contains the key used to encrypt the stream, the
-        /// key is encrypted using <see cref="IKeyVaultStore"/>.
+        /// key is encrypted using <see cref="IKeyEncryptor"/>. Any modification of the
+        /// stream makes this method fail with a <see cref="System.Security.Cryptography.CryptographicException"/>.
         /// </summary>
         /// <param name="sourceEncryptedStream"></param>
         /// <param name="destinationDecryptedStream"></param>
         /// <returns></returns>
         public async Task Decrypt(Stream sourceEncryptedStream, Stream destinationDecryptedStream)
         {
-            using (var bw = new BinaryReader(sourceEncryptedStream))
+            try
             {
-                //read the length of the key, then with that value we can read the encrypted key.
-                var length = bw.ReadInt32();
-                var encryptedKey = bw.ReadBytes(length);
-                using var originalKey = await _keyVaultStore.DecryptAsync(encryptedKey).ConfigureAwait(false);
-                using var decryptor = originalKey.CreateDecryptor(sourceEncryptedStream);
-                using CryptoStream csDecrypt = new(sourceEncryptedStream, decryptor, CryptoStreamMode.Read);
-                await csDecrypt.CopyToAsync(destinationDecryptedStream).ConfigureAwait(false);
+                var prefix = new byte[CryptoFormat.MagicLength];
+                await sourceEncryptedStream.ReadExactlyAsync(prefix).ConfigureAwait(false);
+                if (CryptoFormat.StartsWithV2Magic(prefix))
+                {
+                    var lengthBuffer = new byte[sizeof(int)];
+                    await sourceEncryptedStream.ReadExactlyAsync(lengthBuffer).ConfigureAwait(false);
+                    var wrappedKeyLength = BinaryPrimitives.ReadInt32LittleEndian(lengthBuffer);
+                    CryptoFormat.ValidateWrappedKeyLength(wrappedKeyLength);
+                    var wrappedKey = new byte[wrappedKeyLength];
+                    await sourceEncryptedStream.ReadExactlyAsync(wrappedKey).ConfigureAwait(false);
+
+                    var header = CryptoFormat.BuildV2EnvelopeHeader(wrappedKey);
+                    using var key = await _keyVaultStore.DecryptAsync(wrappedKey).ConfigureAwait(false);
+                    await key.DecryptAsync(sourceEncryptedStream, destinationDecryptedStream, associatedData: header).ConfigureAwait(false);
+                }
+                else
+                {
+                    //legacy v1 envelope: the four bytes just read are the little-endian
+                    //length of the wrapped key, followed by wrapped key and CBC payload.
+                    var wrappedKeyLength = BinaryPrimitives.ReadInt32LittleEndian(prefix);
+                    CryptoFormat.ValidateWrappedKeyLength(wrappedKeyLength);
+                    var wrappedKey = new byte[wrappedKeyLength];
+                    await sourceEncryptedStream.ReadExactlyAsync(wrappedKey).ConfigureAwait(false);
+
+                    using var key = await _keyVaultStore.DecryptAsync(wrappedKey).ConfigureAwait(false);
+                    await key.DecryptAsync(sourceEncryptedStream, destinationDecryptedStream).ConfigureAwait(false);
+                }
+            }
+            catch (Exception ex)
+            {
+                throw CryptoFormat.DecryptionFailed(ex);
             }
         }
     }

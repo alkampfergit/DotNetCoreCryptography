@@ -27,7 +27,8 @@ namespace DotNetCoreCryptography.Tests.Core.Concrete
             _databaseFile = Path.Combine(_keyMaterialFolder, "info.json");
             return new FolderBasedKeyEncryptor(
                 _keyMaterialFolder,
-                password);
+                password,
+                allowUnencryptedKeys: string.IsNullOrEmpty(password));
         }
 
         [Fact]
@@ -35,7 +36,7 @@ namespace DotNetCoreCryptography.Tests.Core.Concrete
         {
             using var key = new AesEncryptionKey();
             var sut = GenerateSut();
-            await sut.EncryptAsync(key).ConfigureAwait(false);
+            await sut.EncryptAsync(key);
 
             //We should not be able to create a sut where already exists a key
             //with an invalid password
@@ -71,18 +72,24 @@ namespace DotNetCoreCryptography.Tests.Core.Concrete
         }
 
         [Fact]
-        public async Task Avoid_using_the_same_IV()
+        public async Task Wrapped_key_blobs_are_tamper_evident()
         {
-            using var key = new AesEncryptionKey();
+            //Since format v2 keys are wrapped with RFC 5649 AES-KWP, which is
+            //deterministic (it replaced the old CBC + random IV wrapping) but has
+            //integrity built in: flipping any bit of the blob must fail unwrapping.
+            using var key = EncryptionKey.CreateDefault();
             var sut = GenerateSut();
-            await sut.EncryptAsync(key).ConfigureAwait(false);
+            var wrapped = await sut.EncryptAsync(key);
 
-            //We will encrypt with the very same key the very same key.
-            var encrypted = await sut.EncryptAsync(key).ConfigureAwait(false);
-            var otherEncrypted = await sut.EncryptAsync(key).ConfigureAwait(false);
-
-            //Same key encrypted two times should generate a different result due to different IV used
-            Assert.NotEqual(encrypted, otherEncrypted);
+            for (int byteIndex = 0; byteIndex < wrapped.Length; byteIndex++)
+            {
+                for (int bit = 0; bit < 8; bit++)
+                {
+                    var tampered = (byte[])wrapped.Clone();
+                    tampered[byteIndex] ^= (byte)(1 << bit);
+                    await Assert.ThrowsAsync<CryptographicException>(() => sut.DecryptAsync(tampered));
+                }
+            }
         }
 
         [Fact]
@@ -108,11 +115,11 @@ namespace DotNetCoreCryptography.Tests.Core.Concrete
             using var key = EncryptionKey.CreateDefault();
             var sut = GenerateSut();
 
-            var encrypted = await sut.EncryptAsync(key).ConfigureAwait(false);
+            var encrypted = await sut.EncryptAsync(key);
 
             //We generate a new key, but we are able to decrypt old key.
             sut.GenerateNewKey();
-            var decrypted = await sut.DecryptAsync(encrypted).ConfigureAwait(false);
+            var decrypted = await sut.DecryptAsync(encrypted);
             Assert.Equal(key, decrypted);
         }
 

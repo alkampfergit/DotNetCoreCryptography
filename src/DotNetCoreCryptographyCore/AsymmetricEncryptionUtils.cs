@@ -7,6 +7,10 @@ namespace DotNetCoreCryptographyCore
 {
     public static class AsymmetricEncryptionUtils
     {
+        private const int Rsa4096ModulusBytes = 512;
+        private const int Rsa4096PrimeBytes = 256;
+        private const int MaxRsaExponentBytes = 8;
+
         public static bool KeyEqual(this RSAParameters p1, RSAParameters p2) 
         {
             return p1.D.SequenceEqual(p2.D)
@@ -68,40 +72,64 @@ namespace DotNetCoreCryptographyCore
 
         public static RSA DeserializeToRsa(this byte[] serializedRsaKey, out Boolean hasPrivateKey)
         {
+            if (serializedRsaKey is null || serializedRsaKey.Length < 2)
+            {
+                throw new CryptographicException("Serialized RSA key is invalid");
+            }
+
             if (serializedRsaKey[0] != (byte)AsymmetricKeyType.Rsa4096)
             {
                 throw new CryptographicException("Serialized key is not RSA 4096 bits");
             }
 
-            using var ms = new MemoryStream(serializedRsaKey);
-            using var br = new BinaryReader(ms);
-
-            RSAParameters pp = new RSAParameters();
-
-            br.ReadByte();
-            hasPrivateKey = br.ReadBoolean();
-            var exponentLength = br.ReadInt32();
-            pp.Exponent = br.ReadBytes(exponentLength);
-            var modulusLength = br.ReadInt32();
-            pp.Modulus = br.ReadBytes(modulusLength);
-
-            if (hasPrivateKey)
+            try
             {
-                var dLength = br.ReadInt32();
-                pp.D = br.ReadBytes(dLength);
-                var dpLength = br.ReadInt32();
-                pp.DP = br.ReadBytes(dpLength);
-                var dqLength = br.ReadInt32();
-                pp.DQ = br.ReadBytes(dqLength);
+                using var ms = new MemoryStream(serializedRsaKey);
+                using var br = new BinaryReader(ms);
 
-                var pLength = br.ReadInt32();
-                pp.P = br.ReadBytes(pLength);
-                var qLength = br.ReadInt32();
-                pp.Q = br.ReadBytes(qLength);
-                var inverseQLength = br.ReadInt32();
-                pp.InverseQ = br.ReadBytes(inverseQLength);
+                RSAParameters pp = new RSAParameters();
+
+                br.ReadByte();
+                hasPrivateKey = br.ReadBoolean();
+                pp.Exponent = ReadBoundedBytes(br, MaxRsaExponentBytes);
+                pp.Modulus = ReadBoundedBytes(br, Rsa4096ModulusBytes);
+
+                if (hasPrivateKey)
+                {
+                    pp.D = ReadBoundedBytes(br, Rsa4096ModulusBytes);
+                    pp.DP = ReadBoundedBytes(br, Rsa4096PrimeBytes);
+                    pp.DQ = ReadBoundedBytes(br, Rsa4096PrimeBytes);
+                    pp.P = ReadBoundedBytes(br, Rsa4096PrimeBytes);
+                    pp.Q = ReadBoundedBytes(br, Rsa4096PrimeBytes);
+                    pp.InverseQ = ReadBoundedBytes(br, Rsa4096PrimeBytes);
+                }
+                return RSA.Create(pp);
             }
-            return RSA.Create(pp);
+            catch (CryptographicException)
+            {
+                throw;
+            }
+            catch (Exception ex) when (ex is EndOfStreamException || ex is IOException || ex is ArgumentException)
+            {
+                throw new CryptographicException("Serialized RSA key is invalid", ex);
+            }
+        }
+
+        private static byte[] ReadBoundedBytes(BinaryReader br, int maxLength)
+        {
+            var length = br.ReadInt32();
+            if (length <= 0 || length > maxLength || length > br.BaseStream.Length - br.BaseStream.Position)
+            {
+                throw new CryptographicException("Serialized RSA key is invalid");
+            }
+
+            var value = br.ReadBytes(length);
+            if (value.Length != length)
+            {
+                throw new CryptographicException("Serialized RSA key is invalid");
+            }
+
+            return value;
         }
     }
 }

@@ -1,21 +1,25 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
+using System.Threading.Tasks;
 
 namespace DotNetCoreCryptographyCore
 {
     /// <summary>
-    /// Wrap an implementation of an encryption key, simmetric, this
-    /// is done to avoid hardcoding AES all the way up the user.
+    /// Legacy symmetric key based on AES-256-CBC. The format is <b>unauthenticated</b>:
+    /// the ciphertext carries no integrity protection, so tampering cannot be
+    /// detected (see security finding SEC-1). It is retained only to decrypt data
+    /// written by previous versions of the library; new data should always be
+    /// encrypted with <see cref="AesGcmEncryptionKey"/> /
+    /// <see cref="EncryptionKey.CreateDefault"/>.
     /// </summary>
-    /// <remarks>This is an implementation of a symmetric key.</remarks>
     public class AesEncryptionKey : EncryptionKey
     {
         /// <summary>
-        /// Create a new <see cref="AesEncryptionKey"/> with the standard configured
-        /// algorithm, in this example we will default to AES.
+        /// Create a new <see cref="AesEncryptionKey"/>, a legacy AES-256-CBC key.
         /// </summary>
+        [Obsolete("AesEncryptionKey uses unauthenticated AES-CBC and is retained only for compatibility with existing (v1) data. Use EncryptionKey.CreateDefault() / AesGcmEncryptionKey for new data.")]
         public AesEncryptionKey()
         {
             _key = Aes.Create();
@@ -33,8 +37,78 @@ namespace DotNetCoreCryptographyCore
 
         private readonly Aes _key;
 
+        public override void Encrypt(Stream sourceStream, Stream destinationStream, byte[] associatedData = null)
+        {
+            ThrowIfAssociatedDataProvided(associatedData);
+            using var encryptor = CreateEncryptorCore(destinationStream);
+            using var cryptoStream = new CryptoStream(destinationStream, encryptor, CryptoStreamMode.Write, leaveOpen: true);
+            sourceStream.CopyTo(cryptoStream);
+        }
+
+        public override async Task EncryptAsync(Stream sourceStream, Stream destinationStream, byte[] associatedData = null)
+        {
+            ThrowIfAssociatedDataProvided(associatedData);
+            using var encryptor = CreateEncryptorCore(destinationStream);
+            var cryptoStream = new CryptoStream(destinationStream, encryptor, CryptoStreamMode.Write, leaveOpen: true);
+            await using (cryptoStream.ConfigureAwait(false))
+            {
+                await sourceStream.CopyToAsync(cryptoStream).ConfigureAwait(false);
+            }
+        }
+
+        public override void Decrypt(Stream encryptedStream, Stream destinationStream, byte[] associatedData = null)
+        {
+            ThrowIfAssociatedDataProvided(associatedData);
+            try
+            {
+                using var decryptor = CreateDecryptorCore(encryptedStream);
+                using var cryptoStream = new CryptoStream(encryptedStream, decryptor, CryptoStreamMode.Read, leaveOpen: true);
+                cryptoStream.CopyTo(destinationStream);
+            }
+            catch (Exception ex)
+            {
+                throw CryptoFormat.DecryptionFailed(ex);
+            }
+        }
+
+        public override async Task DecryptAsync(Stream encryptedStream, Stream destinationStream, byte[] associatedData = null)
+        {
+            ThrowIfAssociatedDataProvided(associatedData);
+            try
+            {
+                using var decryptor = CreateDecryptorCore(encryptedStream);
+                using var cryptoStream = new CryptoStream(encryptedStream, decryptor, CryptoStreamMode.Read, leaveOpen: true);
+                await cryptoStream.CopyToAsync(destinationStream).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                throw CryptoFormat.DecryptionFailed(ex);
+            }
+        }
+
+        private static void ThrowIfAssociatedDataProvided(byte[] associatedData)
+        {
+            if (associatedData is { Length: > 0 })
+            {
+                throw new NotSupportedException("The legacy AES-CBC key cannot authenticate associated data.");
+            }
+        }
+
         /// <inheritdoc/>
+        [Obsolete("The transform-based API produces the legacy unauthenticated AES-CBC format. Use Encrypt/EncryptAsync on an AesGcmEncryptionKey instead.")]
         public override ICryptoTransform CreateEncryptor(Stream destinationStream)
+        {
+            return CreateEncryptorCore(destinationStream);
+        }
+
+        /// <inheritdoc/>
+        [Obsolete("The transform-based API reads the legacy unauthenticated AES-CBC format. Use Decrypt/DecryptAsync instead.")]
+        public override ICryptoTransform CreateDecryptor(Stream encryptedStream)
+        {
+            return CreateDecryptorCore(encryptedStream);
+        }
+
+        private ICryptoTransform CreateEncryptorCore(Stream destinationStream)
         {
             using var newKey = Aes.Create();
             newKey.Key = _key.Key;
@@ -44,14 +118,13 @@ namespace DotNetCoreCryptographyCore
             return newKey.CreateEncryptor();
         }
 
-        /// <inheritdoc/>
-        public override ICryptoTransform CreateDecryptor(Stream encryptedStream)
+        private ICryptoTransform CreateDecryptorCore(Stream encryptedStream)
         {
             using var newKey = Aes.Create();
             newKey.Key = _key.Key;
             newKey.Mode = _key.Mode;
             var newIV = new byte[newKey.IV.Length];
-            encryptedStream.Read(newIV, 0, newIV.Length);
+            encryptedStream.ReadExactly(newIV);
             newKey.IV = newIV;
             return newKey.CreateDecryptor();
         }
@@ -59,6 +132,11 @@ namespace DotNetCoreCryptographyCore
         public override byte[] Serialize()
         {
             return _key.Serialize();
+        }
+
+        internal override byte[] ExportRawKeyMaterial()
+        {
+            return _key.Key;
         }
 
         protected override void OnDispose(bool disposing)

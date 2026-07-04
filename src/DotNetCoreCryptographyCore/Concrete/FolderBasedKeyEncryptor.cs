@@ -1,8 +1,12 @@
 ﻿using DotNetCoreCryptographyCore.Utils;
 using System;
+using System.Buffers.Binary;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 
@@ -31,9 +35,39 @@ namespace DotNetCoreCryptographyCore.Concrete
         public FolderBasedKeyEncryptor(
             string keyMaterialFolderStore,
             string password)
+            : this(keyMaterialFolderStore, password, allowUnencryptedKeys: false)
         {
+        }
+
+        /// <param name="keyMaterialFolderStore">Folder that stores the key files and metadata.</param>
+        /// <param name="password">Password used to encrypt the key files at rest. When
+        /// null or empty the key files are stored in cleartext.</param>
+        /// <param name="allowUnencryptedKeys">Must be <c>true</c> to permit cleartext
+        /// (passwordless) storage; otherwise an empty password throws.</param>
+        public FolderBasedKeyEncryptor(
+            string keyMaterialFolderStore,
+            string password,
+            bool allowUnencryptedKeys)
+        {
+            if (string.IsNullOrEmpty(password) && !allowUnencryptedKeys)
+            {
+                throw new InvalidOperationException(
+                    "FolderBasedKeyEncryptor stores key files in cleartext when no password is " +
+                    "provided. Provide a password, or pass allowUnencryptedKeys: true to " +
+                    "acknowledge cleartext key storage.");
+            }
+
             _keyMaterialFolderStore = keyMaterialFolderStore;
             _password = password;
+
+            if (string.IsNullOrEmpty(password))
+            {
+                Trace.TraceWarning(
+                    "FolderBasedKeyEncryptor is storing key files in cleartext in '{0}' because no " +
+                    "password was provided; anyone who can read the folder holds the keys.",
+                    keyMaterialFolderStore);
+            }
+
             InternalUtils.EnsureDirectory(_keyMaterialFolderStore);
 
             _keyInformation = LoadInfo();
@@ -78,6 +112,7 @@ namespace DotNetCoreCryptographyCore.Concrete
             if (!_keys.TryGetValue(keyNumber, out var key))
             {
                 var keyName = Path.Combine(_keyMaterialFolderStore, $"{keyNumber}.key");
+                InternalUtils.EnsureOwnerOnlyPermissions(keyName);
                 var encryptedSerializedKey = File.ReadAllBytes(keyName);
                 var serializedKey = Decrypt(encryptedSerializedKey);
                 key = EncryptionKey.CreateFromSerializedVersion(serializedKey);
@@ -88,24 +123,59 @@ namespace DotNetCoreCryptographyCore.Concrete
 
         public async Task<EncryptionKey> DecryptAsync(byte[] encryptedKey)
         {
-            using var sourceMs = new MemoryStream(encryptedKey);
-            var buffer = new byte[4];
-            sourceMs.Read(buffer, 0, 4);
-            var decryptionKey = GetKey(BitConverter.ToInt32(buffer));
-            using var destinationMs = new MemoryStream();
-            await StaticEncryptor.DecryptAsync(sourceMs, destinationMs, decryptionKey).ConfigureAwait(false);
-            return EncryptionKey.CreateFromSerializedVersion(destinationMs.ToArray());
+            ArgumentNullException.ThrowIfNull(encryptedKey);
+            try
+            {
+                if (CryptoFormat.StartsWithV2Magic(encryptedKey))
+                {
+                    //v2 blob: [magic][int32 key-number][AES-KWP(serialized key)].
+                    //RFC 5649 unwrapping is integrity-checked and fails closed on tampering.
+                    var keyNumber = BinaryPrimitives.ReadInt32LittleEndian(
+                        encryptedKey.AsSpan(CryptoFormat.MagicLength));
+                    using var kek = CryptoFormat.CreateKeyWrapAes(GetKey(keyNumber));
+                    var serializedKey = kek.DecryptKeyWrapPadded(
+                        encryptedKey.AsSpan(CryptoFormat.MagicLength + sizeof(int)));
+                    return EncryptionKey.CreateFromSerializedVersion(serializedKey);
+                }
+
+                //legacy v1 blob: [int32 key-number][AES-CBC(serialized key)]. A collision
+                //with the v2 magic is impossible because it would require ~37.9 million
+                //generated keys in the folder.
+                var legacyKeyNumber = BinaryPrimitives.ReadInt32LittleEndian(encryptedKey);
+                var decryptionKey = GetKey(legacyKeyNumber);
+                using var sourceMs = new MemoryStream(encryptedKey, sizeof(int), encryptedKey.Length - sizeof(int));
+                using var destinationMs = new MemoryStream();
+                await decryptionKey.DecryptAsync(sourceMs, destinationMs).ConfigureAwait(false);
+                return EncryptionKey.CreateFromSerializedVersion(destinationMs.ToArray());
+            }
+            catch (Exception ex)
+            {
+                throw CryptoFormat.DecryptionFailed(ex);
+            }
         }
 
-        public async Task<byte[]> EncryptAsync(EncryptionKey key)
+        public Task<byte[]> EncryptAsync(EncryptionKey key)
         {
-            using var destinationMs = new MemoryStream();
-            destinationMs.Write(BitConverter.GetBytes(_keyInformation.ActualKeyNumber));
-            using var sourceMs = new MemoryStream(key.Serialize());
+            //v2 blob: [magic][int32 key-number][AES-KWP(serialized key)]. RFC 5649
+            //key wrapping has integrity built in, so a tampered blob fails to unwrap.
+            var serializedKey = key.Serialize();
+            try
+            {
+                using var kek = CryptoFormat.CreateKeyWrapAes(_currentKey);
+                var wrapped = kek.EncryptKeyWrapPadded(serializedKey);
 
-            //we need to generate another IV to avoid encrypting always with the very same value.
-            await StaticEncryptor.EncryptAsync(sourceMs, destinationMs, _currentKey).ConfigureAwait(false);
-            return destinationMs.ToArray();
+                var blob = new byte[CryptoFormat.MagicLength + sizeof(int) + wrapped.Length];
+                CryptoFormat.V2Magic.CopyTo(blob, 0);
+                BinaryPrimitives.WriteInt32LittleEndian(
+                    blob.AsSpan(CryptoFormat.MagicLength),
+                    _keyInformation.ActualKeyNumber);
+                wrapped.CopyTo(blob, CryptoFormat.MagicLength + sizeof(int));
+                return Task.FromResult(blob);
+            }
+            finally
+            {
+                CryptographicOperations.ZeroMemory(serializedKey);
+            }
         }
 
         /// <summary>
@@ -114,22 +184,36 @@ namespace DotNetCoreCryptographyCore.Concrete
         /// </summary>
         public void GenerateNewKey()
         {
-            _keyInformation.ActualKeyNumber += 1;
-            var keyName = Path.Combine(_keyMaterialFolderStore, $"{_keyInformation.ActualKeyNumber}.key");
-            _currentKey = EncryptionKey.CreateDefault();
-            _keys[_keyInformation.ActualKeyNumber] = _currentKey;
-            _keyInformation.KeysInformation[_keyInformation.ActualKeyNumber.ToString()] = new KeyInformation()
+            // Serialize the whole generate-and-persist sequence so two concurrent
+            // callers cannot pick the same key number and clobber each other's file.
+            lock (_lock)
             {
-                Id = _keyInformation.ActualKeyNumber.ToString(),
-                Encrypted = KeysAreEncrpted,
-                CreatonDate = DateTime.UtcNow,
-                Revoked = false,
-            };
+                _keyInformation.ActualKeyNumber += 1;
+                var keyName = Path.Combine(_keyMaterialFolderStore, $"{_keyInformation.ActualKeyNumber}.key");
+                _currentKey = EncryptionKey.CreateDefault();
+                _keys[_keyInformation.ActualKeyNumber] = _currentKey;
+                _keyInformation.KeysInformation[_keyInformation.ActualKeyNumber.ToString()] = new KeyInformation()
+                {
+                    Id = _keyInformation.ActualKeyNumber.ToString(),
+                    Encrypted = KeysAreEncrpted,
+                    CreatonDate = DateTime.UtcNow,
+                    Revoked = false,
+                };
 
-            var serializedKey = _currentKey.Serialize();
-            var encryptedSerializedKey = Encrypt(serializedKey);
-            File.WriteAllBytes(keyName, encryptedSerializedKey);
-            SaveInfo(_keyInformation);
+                var serializedKey = _currentKey.Serialize();
+                try
+                {
+                    var encryptedSerializedKey = Encrypt(serializedKey);
+                    // CreateNew + owner-only perms: never silently overwrite an existing
+                    // key file, and never leave it group/world-readable.
+                    InternalUtils.WriteNewFileRestricted(keyName, encryptedSerializedKey);
+                }
+                finally
+                {
+                    CryptographicOperations.ZeroMemory(serializedKey);
+                }
+                SaveInfo(_keyInformation);
+            }
         }
 
         private KeysDatabase LoadInfo()
@@ -147,7 +231,8 @@ namespace DotNetCoreCryptographyCore.Concrete
         {
             lock (_lock)
             {
-                File.WriteAllText(GetInfoFileName, JsonSerializer.Serialize(information));
+                var json = JsonSerializer.Serialize(information);
+                InternalUtils.WriteFileRestricted(GetInfoFileName, Encoding.UTF8.GetBytes(json));
             }
         }
 

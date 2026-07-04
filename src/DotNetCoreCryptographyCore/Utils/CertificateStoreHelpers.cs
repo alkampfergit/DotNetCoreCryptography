@@ -3,7 +3,7 @@ using System.Security.Cryptography.X509Certificates;
 
 namespace DotNetCoreCryptographyCore.Utils
 {
-    internal class CertificateStoreHelpers
+    internal static class CertificateStoreHelpers
     {
         public static X509Certificate2? GetCertificateFromThumbprint(string thumbprint)
         {

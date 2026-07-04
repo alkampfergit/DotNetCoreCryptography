@@ -92,5 +92,21 @@ namespace DotNetCoreCryptography.Tests.Core
         {
             return new RsaEncryptionKey();
         }
+
+        [Fact]
+        public void CreateFromSerializedVersion_rejects_null()
+        {
+            //null/empty input must fail with a deliberate, catchable exception rather
+            //than a NullReferenceException/IndexOutOfRangeException (SEC-9).
+            Assert.Throws<ArgumentNullException>(
+                () => AsymmetricEncryptionKey.CreateFromSerializedVersion(null));
+        }
+
+        [Fact]
+        public void CreateFromSerializedVersion_rejects_empty()
+        {
+            Assert.Throws<CryptographicException>(
+                () => AsymmetricEncryptionKey.CreateFromSerializedVersion(Array.Empty<byte>()));
+        }
     }
 }

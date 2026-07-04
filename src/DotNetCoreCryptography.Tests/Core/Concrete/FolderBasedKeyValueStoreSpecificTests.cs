@@ -2,6 +2,7 @@
 using DotNetCoreCryptographyCore.Concrete;
 using Newtonsoft.Json;
 using System;
+using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.IO;
 using System.Security.Cryptography;
@@ -27,7 +28,8 @@ namespace DotNetCoreCryptography.Tests.Core.Concrete
             _databaseFile = Path.Combine(_keyMaterialFolder, "info.json");
             return new FolderBasedKeyEncryptor(
                 _keyMaterialFolder,
-                password);
+                password,
+                allowUnencryptedKeys: string.IsNullOrEmpty(password));
         }
 
         [Fact]
@@ -35,7 +37,7 @@ namespace DotNetCoreCryptography.Tests.Core.Concrete
         {
             using var key = new AesEncryptionKey();
             var sut = GenerateSut();
-            await sut.EncryptAsync(key).ConfigureAwait(false);
+            await sut.EncryptAsync(key);
 
             //We should not be able to create a sut where already exists a key
             //with an invalid password
@@ -71,18 +73,43 @@ namespace DotNetCoreCryptography.Tests.Core.Concrete
         }
 
         [Fact]
-        public async Task Avoid_using_the_same_IV()
+        public async Task Wrapped_key_blobs_are_tamper_evident()
         {
-            using var key = new AesEncryptionKey();
+            //Since format v2 keys are wrapped with RFC 5649 AES-KWP, which is
+            //deterministic (it replaced the old CBC + random IV wrapping) but has
+            //integrity built in: flipping any bit of the blob must fail unwrapping.
+            using var key = EncryptionKey.CreateDefault();
             var sut = GenerateSut();
-            await sut.EncryptAsync(key).ConfigureAwait(false);
+            var wrapped = await sut.EncryptAsync(key);
 
-            //We will encrypt with the very same key the very same key.
-            var encrypted = await sut.EncryptAsync(key).ConfigureAwait(false);
-            var otherEncrypted = await sut.EncryptAsync(key).ConfigureAwait(false);
+            for (int byteIndex = 0; byteIndex < wrapped.Length; byteIndex++)
+            {
+                for (int bit = 0; bit < 8; bit++)
+                {
+                    var tampered = (byte[])wrapped.Clone();
+                    tampered[byteIndex] ^= (byte)(1 << bit);
+                    await Assert.ThrowsAsync<CryptographicException>(() => sut.DecryptAsync(tampered));
+                }
+            }
+        }
 
-            //Same key encrypted two times should generate a different result due to different IV used
-            Assert.NotEqual(encrypted, otherEncrypted);
+        [Fact]
+        public async Task Decrypt_with_unknown_key_number_does_not_leak_path()
+        {
+            //a blob pointing at a key number with no .key file on disk must fail with
+            //a CryptographicException that does not expose the key-storage path (SEC-9).
+            using var key = EncryptionKey.CreateDefault();
+            var sut = GenerateSut();
+            var wrapped = await sut.EncryptAsync(key);
+
+            //the key number lives right after the 4-byte v2 magic; point it at a
+            //number that was never generated.
+            BinaryPrimitives.WriteInt32LittleEndian(wrapped.AsSpan(4), 9999);
+
+            var ex = await Assert.ThrowsAsync<CryptographicException>(() => sut.DecryptAsync(wrapped));
+            var rendered = ex.ToString();
+            Assert.DoesNotContain(_keyMaterialFolder, rendered);
+            Assert.DoesNotContain("9999.key", rendered);
         }
 
         [Fact]
@@ -108,11 +135,11 @@ namespace DotNetCoreCryptography.Tests.Core.Concrete
             using var key = EncryptionKey.CreateDefault();
             var sut = GenerateSut();
 
-            var encrypted = await sut.EncryptAsync(key).ConfigureAwait(false);
+            var encrypted = await sut.EncryptAsync(key);
 
             //We generate a new key, but we are able to decrypt old key.
             sut.GenerateNewKey();
-            var decrypted = await sut.DecryptAsync(encrypted).ConfigureAwait(false);
+            var decrypted = await sut.DecryptAsync(encrypted);
             Assert.Equal(key, decrypted);
         }
 

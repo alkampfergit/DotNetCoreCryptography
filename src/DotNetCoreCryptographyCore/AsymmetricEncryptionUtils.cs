@@ -1,22 +1,34 @@
 ﻿using System;
 using System.IO;
-using System.Linq;
 using System.Security.Cryptography;
 
 namespace DotNetCoreCryptographyCore
 {
     public static class AsymmetricEncryptionUtils
     {
-        public static bool KeyEqual(this RSAParameters p1, RSAParameters p2) 
+        private const int Rsa4096ModulusBytes = 512;
+        private const int Rsa4096PrimeBytes = 256;
+        private const int MaxRsaExponentBytes = 8;
+        private const string InvalidSerializedRsaKeyMessage = "Serialized RSA key is invalid";
+
+        public static bool KeyEqual(this RSAParameters p1, RSAParameters p2)
         {
-            return p1.D.SequenceEqual(p2.D)
-                && p1.DP.SequenceEqual(p2.DP)
-                && p1.DQ.SequenceEqual(p2.DQ)
-                && p1.Exponent.SequenceEqual(p2.Exponent)
-                && p1.Modulus.SequenceEqual(p2.Modulus)
-                && p1.P.SequenceEqual(p2.P)
-                && p1.Q.SequenceEqual(p2.Q)
-                && p1.InverseQ.SequenceEqual(p2.InverseQ);
+            // Constant-time comparison of secret key material (SEC-7). A null
+            // component (public-only parameters) converts to an empty span, so a
+            // null/non-null mismatch fails the length check without leaking timing.
+            return FixedTimeEqual(p1.D, p2.D)
+                && FixedTimeEqual(p1.DP, p2.DP)
+                && FixedTimeEqual(p1.DQ, p2.DQ)
+                && FixedTimeEqual(p1.Exponent, p2.Exponent)
+                && FixedTimeEqual(p1.Modulus, p2.Modulus)
+                && FixedTimeEqual(p1.P, p2.P)
+                && FixedTimeEqual(p1.Q, p2.Q)
+                && FixedTimeEqual(p1.InverseQ, p2.InverseQ);
+        }
+
+        private static bool FixedTimeEqual(byte[] a, byte[] b)
+        {
+            return CryptographicOperations.FixedTimeEquals(a, b);
         }
 
         /// <summary>
@@ -68,40 +80,73 @@ namespace DotNetCoreCryptographyCore
 
         public static RSA DeserializeToRsa(this byte[] serializedRsaKey, out Boolean hasPrivateKey)
         {
+            if (serializedRsaKey is null || serializedRsaKey.Length < 2)
+            {
+                throw new CryptographicException(InvalidSerializedRsaKeyMessage);
+            }
+
             if (serializedRsaKey[0] != (byte)AsymmetricKeyType.Rsa4096)
             {
                 throw new CryptographicException("Serialized key is not RSA 4096 bits");
             }
 
-            using var ms = new MemoryStream(serializedRsaKey);
-            using var br = new BinaryReader(ms);
-
-            RSAParameters pp = new RSAParameters();
-
-            br.ReadByte();
-            hasPrivateKey = br.ReadBoolean();
-            var exponentLength = br.ReadInt32();
-            pp.Exponent = br.ReadBytes(exponentLength);
-            var modulusLength = br.ReadInt32();
-            pp.Modulus = br.ReadBytes(modulusLength);
-
-            if (hasPrivateKey)
+            try
             {
-                var dLength = br.ReadInt32();
-                pp.D = br.ReadBytes(dLength);
-                var dpLength = br.ReadInt32();
-                pp.DP = br.ReadBytes(dpLength);
-                var dqLength = br.ReadInt32();
-                pp.DQ = br.ReadBytes(dqLength);
+                using var ms = new MemoryStream(serializedRsaKey);
+                using var br = new BinaryReader(ms);
 
-                var pLength = br.ReadInt32();
-                pp.P = br.ReadBytes(pLength);
-                var qLength = br.ReadInt32();
-                pp.Q = br.ReadBytes(qLength);
-                var inverseQLength = br.ReadInt32();
-                pp.InverseQ = br.ReadBytes(inverseQLength);
+                RSAParameters pp = new RSAParameters();
+
+                br.ReadByte();
+                hasPrivateKey = br.ReadBoolean();
+                pp.Exponent = ReadBoundedBytes(br, MaxRsaExponentBytes);
+                pp.Modulus = ReadBoundedBytes(br, Rsa4096ModulusBytes);
+
+                if (hasPrivateKey)
+                {
+                    pp.D = ReadBoundedBytes(br, Rsa4096ModulusBytes);
+                    pp.DP = ReadBoundedBytes(br, Rsa4096PrimeBytes);
+                    pp.DQ = ReadBoundedBytes(br, Rsa4096PrimeBytes);
+                    pp.P = ReadBoundedBytes(br, Rsa4096PrimeBytes);
+                    pp.Q = ReadBoundedBytes(br, Rsa4096PrimeBytes);
+                    pp.InverseQ = ReadBoundedBytes(br, Rsa4096PrimeBytes);
+                }
+
+                var rsa = RSA.Create(pp);
+                // Reject a strength downgrade: a blob carrying a short modulus would
+                // otherwise yield a weak key still advertised as Rsa4096 (SEC-5).
+                if (rsa.KeySize != 4096)
+                {
+                    rsa.Dispose();
+                    throw new CryptographicException("Deserialized RSA key is not 4096 bits");
+                }
+                return rsa;
             }
-            return RSA.Create(pp);
+            catch (CryptographicException)
+            {
+                throw;
+            }
+            catch (Exception ex) when (ex is EndOfStreamException || ex is IOException || ex is ArgumentException)
+            {
+                throw new CryptographicException(InvalidSerializedRsaKeyMessage, ex);
+            }
+        }
+
+        private static byte[] ReadBoundedBytes(BinaryReader br, int maxLength)
+        {
+            var length = br.ReadInt32();
+            if (length <= 0 || length > maxLength || length > br.BaseStream.Length - br.BaseStream.Position)
+            {
+                throw new CryptographicException(InvalidSerializedRsaKeyMessage);
+            }
+
+            var value = br.ReadBytes(length);
+            if (value.Length != length)
+            {
+                throw new CryptographicException(InvalidSerializedRsaKeyMessage);
+            }
+
+            return value;
         }
     }
 }

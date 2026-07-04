@@ -6,6 +6,7 @@
   <ItemGroup>
     <!-- Core packages -->
     <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="8.0.0" />
+    <PackageVersion Include="System.Security.Cryptography.ProtectedData" Version="9.0.0" />
     
     <!-- Azure packages -->
     <PackageVersion Include="Azure.Identity" Version="1.14.1" />
@@ -15,6 +16,7 @@
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
     <PackageVersion Include="xunit" Version="2.9.3" />
     <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.1" />
+    <PackageVersion Include="Xunit.SkippableFact" Version="1.5.61" />
     <PackageVersion Include="coverlet.collector" Version="6.0.4" />
     <PackageVersion Include="coverlet.msbuild" Version="6.0.4" />
   </ItemGroup>

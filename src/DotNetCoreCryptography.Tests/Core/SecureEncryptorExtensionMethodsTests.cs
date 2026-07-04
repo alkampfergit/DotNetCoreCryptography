@@ -1,5 +1,6 @@
 ﻿using DotNetCoreCryptographyCore;
 using DotNetCoreCryptographyCore.Concrete;
+using System;
 using System.IO;
 using System.Threading.Tasks;
 using Xunit;
@@ -23,7 +24,8 @@ namespace DotNetCoreCryptography.Tests.Core
         private static SecureEncryptor CreateSut()
         {
             //we could use a mock, but it is simpler for now using a know working store.
-            return new SecureEncryptor(new DeveloperKeyEncryptor(Path.GetTempPath()));
+            //each test gets its own folder so parallel test runs don't race on a shared key file.
+            return new SecureEncryptor(new DeveloperKeyEncryptor(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString()), allowUnencryptedKeyStore: true));
         }
     }
 }

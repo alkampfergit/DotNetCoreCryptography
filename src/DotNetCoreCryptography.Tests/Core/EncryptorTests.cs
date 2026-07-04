@@ -20,7 +20,7 @@ namespace DotNetCoreCryptography.Tests.Core
             await StaticEncryptor.AesEncryptWithPasswordAsync(
                 sourceStream,
                 encryptedStream,
-                Password).ConfigureAwait(false);
+                Password);
 
             //Now decrypt
             var decryptedMemoryStream = new MemoryStream();
@@ -28,7 +28,7 @@ namespace DotNetCoreCryptography.Tests.Core
             await StaticEncryptor.AesDecryptWithPasswordAsync(
                 readingEncryptedStream,
                 decryptedMemoryStream,
-                Password).ConfigureAwait(false);
+                Password);
 
             var decryptedString = Encoding.UTF8.GetString(decryptedMemoryStream.ToArray());
             Assert.Equal(content, decryptedString);
@@ -42,12 +42,12 @@ namespace DotNetCoreCryptography.Tests.Core
 
             var encrypted = await StaticEncryptor.AesEncryptWithPasswordAsync(
                 stringContent,
-                Password).ConfigureAwait(false);
+                Password);
 
             //Now decrypt
             var decrypted = await StaticEncryptor.AesDecryptWithPasswordAsync(
                 encrypted,
-                Password).ConfigureAwait(false);
+                Password);
 
             Assert.Equal(stringContent, decrypted);
         }
@@ -78,12 +78,12 @@ namespace DotNetCoreCryptography.Tests.Core
             using var sourceStream = new MemoryStream(stringContent);
             using var encryptedStream = new MemoryStream();
             using var key = new AesEncryptionKey();
-            await StaticEncryptor.EncryptAsync(sourceStream, encryptedStream, key).ConfigureAwait(false);
+            await StaticEncryptor.EncryptAsync(sourceStream, encryptedStream, key);
 
             //Now decrypt
             var decryptedMemoryStream = new MemoryStream();
             var readingEncryptedStream = new MemoryStream(encryptedStream.ToArray());
-            await StaticEncryptor.DecryptAsync(readingEncryptedStream, decryptedMemoryStream, key).ConfigureAwait(false);
+            await StaticEncryptor.DecryptAsync(readingEncryptedStream, decryptedMemoryStream, key);
 
             var decryptedString = Encoding.UTF8.GetString(decryptedMemoryStream.ToArray());
             Assert.Equal(content, decryptedString);

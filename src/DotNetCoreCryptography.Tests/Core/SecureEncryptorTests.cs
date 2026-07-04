@@ -1,5 +1,6 @@
 ﻿using DotNetCoreCryptographyCore;
 using DotNetCoreCryptographyCore.Concrete;
+using System;
 using System.IO;
 using System.Text;
 using System.Threading.Tasks;
@@ -25,7 +26,7 @@ namespace DotNetCoreCryptography.Tests.Core
             await sut.Decrypt(sourceEncryptedStream, decryptedStream);
 
             var decryptedContent = Encoding.UTF8.GetString(decryptedStream.ToArray());
-            Assert.Equal(decryptedContent, someContenttoBeEncrypted);
+            Assert.Equal(someContenttoBeEncrypted, decryptedContent);
         }
 
         const string someContenttoBeEncrypted = "this test will be encrypted";
@@ -39,7 +40,8 @@ namespace DotNetCoreCryptography.Tests.Core
         private SecureEncryptor CreateSut()
         {
             //we could use a mock, but it is simpler for now using a know working store.
-            return new SecureEncryptor(new DeveloperKeyEncryptor(Path.GetTempPath()));
+            //each test gets its own folder so parallel test runs don't race on a shared key file.
+            return new SecureEncryptor(new DeveloperKeyEncryptor(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString()), allowUnencryptedKeyStore: true));
         }
     }
 }

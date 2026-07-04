@@ -7,6 +7,13 @@ on:
       - feature/*
       - hotfix/*
       - release/*
+  # Also build + test every pull request into develop/master, regardless of the
+  # head branch name (the push filter above only covers a few branch prefixes).
+  # The publish job is guarded to push events, so PRs never pack/publish.
+  pull_request:
+    branches:
+      - master
+      - develop
 
 # Least privilege: this workflow only needs to read the repository.
 permissions:
@@ -115,6 +122,8 @@ jobs:
   publish:
     name: Pack & Publish
     needs: build-test
+    # Only pack/publish on push builds; pull-request runs are build + test only.
+    if: github.event_name == 'push'
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4

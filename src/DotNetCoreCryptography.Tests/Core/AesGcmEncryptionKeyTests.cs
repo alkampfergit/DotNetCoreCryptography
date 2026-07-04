@@ -14,6 +14,11 @@ namespace DotNetCoreCryptography.Tests.Core
         private const int ChunkHeaderSize = 4;
         private const int TagSize = 16;
 
+        // Current stream layout: 4-byte magic + 32-byte salt before the first chunk.
+        private static readonly byte[] GcmStreamMagic = { 0x44, 0x4E, 0x43, 0x10 };
+        private const int SaltSize = 32;
+        private const int StreamHeaderSize = 4 + SaltSize;
+
         private static byte[] GenerateContent(int length)
         {
             var content = new byte[length];
@@ -176,10 +181,10 @@ namespace DotNetCoreCryptography.Tests.Core
 
             const int chunkTotalSize = ChunkHeaderSize + ChunkSize + TagSize;
             var tampered = (byte[])encrypted.Clone();
-            var firstChunk = encrypted.AsSpan(NoncePrefixSize, chunkTotalSize).ToArray();
-            var secondChunk = encrypted.AsSpan(NoncePrefixSize + chunkTotalSize, chunkTotalSize).ToArray();
-            secondChunk.CopyTo(tampered, NoncePrefixSize);
-            firstChunk.CopyTo(tampered, NoncePrefixSize + chunkTotalSize);
+            var firstChunk = encrypted.AsSpan(StreamHeaderSize, chunkTotalSize).ToArray();
+            var secondChunk = encrypted.AsSpan(StreamHeaderSize + chunkTotalSize, chunkTotalSize).ToArray();
+            secondChunk.CopyTo(tampered, StreamHeaderSize);
+            firstChunk.CopyTo(tampered, StreamHeaderSize + chunkTotalSize);
 
             Assert.Throws<CryptographicException>(() => Decrypt(key, tampered));
         }
@@ -225,6 +230,95 @@ namespace DotNetCoreCryptography.Tests.Core
             using var key = EncryptionKey.CreateDefault();
             var encrypted = StaticEncryptor.Encrypt(content, key);
             Assert.Equal(content, StaticEncryptor.Decrypt(encrypted, key));
+        }
+
+        [Fact]
+        public void New_stream_starts_with_magic_and_salt()
+        {
+            using var key = new AesGcmEncryptionKey();
+            var encrypted = Encrypt(key, GenerateContent(100));
+
+            Assert.True(encrypted.Length >= StreamHeaderSize);
+            Assert.Equal(GcmStreamMagic, encrypted[..GcmStreamMagic.Length]);
+        }
+
+        [Fact]
+        public void Each_encryption_uses_a_fresh_salt()
+        {
+            using var key = new AesGcmEncryptionKey();
+            var content = GenerateContent(100);
+            var first = Encrypt(key, content);
+            var second = Encrypt(key, content);
+
+            //the 32-byte salt that follows the magic must differ between two calls,
+            //otherwise the derived subkeys (and nonces) would repeat.
+            var firstSalt = first.AsSpan(GcmStreamMagic.Length, SaltSize).ToArray();
+            var secondSalt = second.AsSpan(GcmStreamMagic.Length, SaltSize).ToArray();
+            Assert.NotEqual(firstSalt, secondSalt);
+        }
+
+        [Fact]
+        public void Legacy_prefix_format_is_still_decryptable()
+        {
+            //Reproduces the pre-hardening wire format (7-byte random nonce prefix,
+            //no magic, chunks encrypted directly with the long-term key) and proves
+            //the current Decrypt still reads it. Guards against a regression that
+            //would make previously-encrypted data unreadable.
+            using var key = new AesGcmEncryptionKey();
+            var rawKey = key.Serialize().AsSpan(1).ToArray(); // drop the KeyType byte
+            var plaintext = GenerateContent(200);
+
+            var legacy = BuildLegacySingleChunkStream(rawKey, plaintext);
+            Assert.Equal(plaintext, Decrypt(key, legacy));
+        }
+
+        [Fact]
+        public async Task Legacy_prefix_format_is_still_decryptable_async()
+        {
+            using var key = new AesGcmEncryptionKey();
+            var rawKey = key.Serialize().AsSpan(1).ToArray();
+            var plaintext = GenerateContent(200);
+
+            var legacy = BuildLegacySingleChunkStream(rawKey, plaintext);
+            using var source = new MemoryStream(legacy);
+            using var destination = new MemoryStream();
+            await key.DecryptAsync(source, destination);
+            Assert.Equal(plaintext, destination.ToArray());
+        }
+
+        /// <summary>
+        /// Builds a single-chunk stream in the legacy format:
+        /// <c>[7-byte random prefix][4-byte header][ciphertext][16-byte tag]</c> with
+        /// nonce = prefix || 0u || 1 (final) and no associated data.
+        /// </summary>
+        private static byte[] BuildLegacySingleChunkStream(byte[] rawKey, byte[] plaintext)
+        {
+            var prefix = RandomNumberGenerator.GetBytes(NoncePrefixSize);
+            var nonce = new byte[12];
+            prefix.CopyTo(nonce, 0);
+            // counter 0 (bytes 7..10 stay zero) and final-flag byte at index 11
+            nonce[11] = 1;
+
+            var header = new byte[ChunkHeaderSize];
+            uint headerValue = (uint)plaintext.Length | 0x8000_0000u;
+            header[0] = (byte)(headerValue >> 24);
+            header[1] = (byte)(headerValue >> 16);
+            header[2] = (byte)(headerValue >> 8);
+            header[3] = (byte)headerValue;
+
+            var cipher = new byte[plaintext.Length];
+            var tag = new byte[TagSize];
+            using (var gcm = new AesGcm(rawKey, TagSize))
+            {
+                gcm.Encrypt(nonce, plaintext, cipher, tag);
+            }
+
+            using var ms = new MemoryStream();
+            ms.Write(prefix);
+            ms.Write(header);
+            ms.Write(cipher);
+            ms.Write(tag);
+            return ms.ToArray();
         }
     }
 }

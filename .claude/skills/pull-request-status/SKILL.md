@@ -67,39 +67,28 @@ build itself is green. Diagnose that via SonarCloud (below), not via run logs.
 
 ## 2. SonarCloud pull-request analysis
 
-Use the `pullRequest=<PR_NUMBER>` parameter (NOT `branch=`) so you see the PR analysis SonarCloud
-produced for this PR. No token needed (public project).
+Delegate the SonarCloud querying to the generic **`sonarcloud`** agent (Task tool,
+`subagent_type: "sonarcloud"`). That agent holds all the API mechanics; this skill only supplies
+*this project's* real parameters:
 
-Quality gate for the PR:
+- `projectKey`: `alkampfergit_DotNetCoreCryptography`
+- `organization`: `alkampfergit-github`
+- `pullRequest`: `<PR_NUMBER>` — pass the PR number so it queries the **PR analysis** (new-code
+  findings), NOT the branch. No token needed (public project).
 
-```
-curl -s "https://sonarcloud.io/api/qualitygates/project_status?projectKey=alkampfergit_DotNetCoreCryptography&pullRequest=<PR_NUMBER>"
-```
+Ask it for the PR quality gate, all open issues, and all security hotspots. Example prompt:
 
-`projectStatus.status` is `OK` or `ERROR`; `conditions[]` tells which metric failed on new code
-(e.g. `new_coverage`, `new_duplicated_lines_density`, `new_security_rating`). If this returns no
-data, the PR analysis has not been submitted — see the caveat at the bottom.
+> Project key `alkampfergit_DotNetCoreCryptography`, organization `alkampfergit-github`,
+> pullRequest `<PR_NUMBER>`. Report the quality gate status, all open issues (grouped by severity
+> with file:line), and all TO_REVIEW security hotspots.
 
-Open issues on the PR (new-code issues are what break the gate):
+For **whole-project / branch** health (no open PR, or the user asks about the project overall),
+launch the same agent with `branch=<branch>` or with no scope selector (default branch) instead of
+`pullRequest`.
 
-```
-curl -s "https://sonarcloud.io/api/issues/search?componentKeys=alkampfergit_DotNetCoreCryptography&pullRequest=<PR_NUMBER>&resolved=false&ps=100"
-```
-
-Useful filters: `types=VULNERABILITY,BUG,CODE_SMELL`, `severities=BLOCKER,CRITICAL,MAJOR,MINOR,INFO`.
-
-Security hotspots on the PR (separate endpoint):
-
-```
-curl -s "https://sonarcloud.io/api/hotspots/search?projectKey=alkampfergit_DotNetCoreCryptography&pullRequest=<PR_NUMBER>&status=TO_REVIEW"
-```
-
-For each issue report: `severity`, `type`, `rule`, `component` (strip the `<projectKey>:` prefix to
-get the file path), `line`, `message`. Full rule description:
-`https://sonarcloud.io/api/rules/show?key=<rule>` (e.g. `csharpsquid:S5344`).
-
-Parse JSON with whatever is available on the current platform: `gh --jq`, `jq`, `python3`, or
-PowerShell `ConvertFrom-Json` (this repo's own scripts use PowerShell).
+The agent returns the quality gate status, issues grouped by severity as
+`severity type rule — file:line — message`, and hotspots. If it reports empty PR data, see the
+caveat at the bottom.
 
 ## 3. Reporting
 
@@ -117,18 +106,11 @@ PBKDF2-SHA1@1000 in `EncryptionUtils.DeriveKeyAndIv`) for backward-compatible *d
 Sonar findings that merely point at that retained legacy code are usually dismissable as
 "won't fix"; findings on new code are not.
 
-Dismissing an issue requires a SonarCloud token with 'Administer Issues' permission:
-
-```
-curl -s -X POST -H "Authorization: Bearer $SONAR_TOKEN" \
-  "https://sonarcloud.io/api/issues/do_transition" \
-  -d "issue=<issueKey>&transition=wontfix"      # or: falsepositive
-curl -s -X POST -H "Authorization: Bearer $SONAR_TOKEN" \
-  "https://sonarcloud.io/api/issues/add_comment" \
-  -d "issue=<issueKey>&text=<justification>"
-```
-
-Without a token, tell the user which issues to dismiss and why, and let them do it in the UI.
+Dismissing an issue requires a SonarCloud token with 'Administer Issues' permission and the user's
+explicit approval per issue. The `sonarcloud` agent has the `do_transition` / `add_comment`
+mechanics — hand it the issue key, transition (`wontfix` or `falsepositive`), and justification once
+the user approves. Without a token, tell the user which issues to dismiss and why, and let them do
+it in the UI.
 
 ## Caveat: no PR data in SonarCloud
 

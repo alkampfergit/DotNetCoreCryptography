@@ -6,6 +6,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="DotNetCoreCryptography.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\DotNetCoreCryptographyCore\DotNetCoreCryptographyCore.csproj" />
   </ItemGroup>
 

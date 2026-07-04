@@ -1,0 +1,7 @@
+# Frozen binary crypto test vectors (v1 backward-compat fixtures). They are read
+# byte-for-byte by V1CompatibilityTests, so they must never be EOL/encoding
+# normalized. Marking them "binary" (= -text -diff) also tells file-scanning tools
+# such as SonarCloud's IaC / text-and-secrets sensors to skip them, which stops the
+# "Invalid character encountered ... for encoding UTF-8" warnings on these files.
+src/DotNetCoreCryptography.Tests/Core/Fixtures/**/*.bin binary
+src/DotNetCoreCryptography.Tests/Core/Fixtures/**/*.key binary

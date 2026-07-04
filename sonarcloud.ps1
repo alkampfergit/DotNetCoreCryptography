@@ -109,7 +109,11 @@ $beginArgs = @(
     "/d:sonar.host.url=https://sonarcloud.io",
     "/d:sonar.cs.vstest.reportsPaths=TestResults/*.trx",
     "/d:sonar.cs.opencover.reportsPaths=TestResults/*/coverage.opencover.xml",
-    "/d:sonar.coverage.exclusions=**Test*.cs"
+    "/d:sonar.coverage.exclusions=**Test*.cs",
+    # Binary test vectors under Core/Fixtures (frozen v1 ciphertext/keys read as raw
+    # bytes by V1CompatibilityTests). They are not source; excluding them stops the
+    # scanner from trying to read them as UTF-8 and emitting "Invalid character" warnings.
+    "/d:sonar.exclusions=**/Fixtures/**"
 ) + $sonarScopeArgs
 dotnet tool run dotnet-sonarscanner $beginArgs
 Assert-LastExecution -Message "Error starting SonarCloud analysis. Please check your SONAR_TOKEN and network connectivity." -haltExecution $true

@@ -170,14 +170,34 @@ namespace DotNetCoreCryptographyCore.Concrete
                     using var kek = CryptoFormat.CreateKeyWrapAes(_key);
                     var serializedKey = kek.DecryptKeyWrapPadded(
                         encryptedKey.AsSpan(CryptoFormat.MagicLength));
-                    return EncryptionKey.CreateFromSerializedVersion(serializedKey);
+                    try
+                    {
+                        //CreateFromSerializedVersion copies the material, so the
+                        //transient plaintext DEK can be wiped afterwards (SEC-8).
+                        return EncryptionKey.CreateFromSerializedVersion(serializedKey);
+                    }
+                    finally
+                    {
+                        CryptographicOperations.ZeroMemory(serializedKey);
+                    }
                 }
 
                 //legacy v1 blob: [16-byte IV][AES-CBC(serialized key)]
                 using var sourceMs = new MemoryStream(encryptedKey);
                 using var destinationMs = new MemoryStream();
                 await _key.DecryptAsync(sourceMs, destinationMs).ConfigureAwait(false);
-                return EncryptionKey.CreateFromSerializedVersion(destinationMs.ToArray());
+                var legacySerializedKey = destinationMs.ToArray();
+                try
+                {
+                    return EncryptionKey.CreateFromSerializedVersion(legacySerializedKey);
+                }
+                finally
+                {
+                    //Wipe both the copy and the stream's own backing buffer: disposing
+                    //the MemoryStream does not clear its internal plaintext (SEC-8).
+                    CryptographicOperations.ZeroMemory(legacySerializedKey);
+                    CryptographicOperations.ZeroMemory(destinationMs.GetBuffer().AsSpan(0, (int)destinationMs.Length));
+                }
             }
             catch (Exception ex)
             {

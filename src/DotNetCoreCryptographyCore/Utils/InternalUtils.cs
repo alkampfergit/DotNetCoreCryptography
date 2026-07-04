@@ -33,6 +33,13 @@ namespace DotNetCoreCryptographyCore.Utils
         {
             if (Directory.Exists(directoryPath))
             {
+                // An existing directory may have been created before this hardening
+                // (or by another tool) with looser permissions; tighten it back to
+                // owner-only so co-resident users cannot enumerate the key files.
+                if (!OperatingSystem.IsWindows())
+                {
+                    TightenUnixDirectory(directoryPath);
+                }
                 return;
             }
 
@@ -126,6 +133,23 @@ namespace DotNetCoreCryptographyCore.Utils
                 filePath,
                 mode);
             File.SetUnixFileMode(filePath, OwnerOnlyFile);
+        }
+
+        [UnsupportedOSPlatform("windows")]
+        private static void TightenUnixDirectory(string directoryPath)
+        {
+            var mode = File.GetUnixFileMode(directoryPath);
+            if ((mode & GroupOrOtherAccess) == UnixFileMode.None)
+            {
+                return;
+            }
+
+            Trace.TraceWarning(
+                "Key directory '{0}' was group/other-accessible ({1}); restricting to owner-only (0700). " +
+                "The key files it holds may already have been enumerated by other local users.",
+                directoryPath,
+                mode);
+            File.SetUnixFileMode(directoryPath, OwnerOnlyDirectory);
         }
     }
 }

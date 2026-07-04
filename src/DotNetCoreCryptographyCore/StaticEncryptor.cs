@@ -24,11 +24,6 @@ namespace DotNetCoreCryptographyCore
             await key.EncryptAsync(sourceStream, destinationStream).ConfigureAwait(false);
         }
 
-        public static void Encrypt(Stream sourceStream, Stream destinationStream, EncryptionKey key)
-        {
-            key.Encrypt(sourceStream, destinationStream);
-        }
-
         public static async Task<String> EncryptAsync(string content, EncryptionKey key)
         {
             var data = Encoding.UTF8.GetBytes(content);
@@ -37,6 +32,11 @@ namespace DotNetCoreCryptographyCore
             await EncryptAsync(sourceStream, destMs, key).ConfigureAwait(false);
 
             return Convert.ToBase64String(destMs.ToArray());
+        }
+
+        public static void Encrypt(Stream sourceStream, Stream destinationStream, EncryptionKey key)
+        {
+            key.Encrypt(sourceStream, destinationStream);
         }
 
         public static String Encrypt(string content, EncryptionKey key)
@@ -54,11 +54,6 @@ namespace DotNetCoreCryptographyCore
             await key.DecryptAsync(encryptedStream, destinationStream).ConfigureAwait(false);
         }
 
-        public static void Decrypt(Stream encryptedStream, Stream destinationStream, EncryptionKey key)
-        {
-            key.Decrypt(encryptedStream, destinationStream);
-        }
-
         public static async Task<string> DecryptAsync(string encryptedBase64String, EncryptionKey key)
         {
             var data = Convert.FromBase64String(encryptedBase64String);
@@ -66,6 +61,11 @@ namespace DotNetCoreCryptographyCore
             using var destMs = new MemoryStream();
             await DecryptAsync(ms, destMs, key).ConfigureAwait(false);
             return Encoding.UTF8.GetString(destMs.ToArray());
+        }
+
+        public static void Decrypt(Stream encryptedStream, Stream destinationStream, EncryptionKey key)
+        {
+            key.Decrypt(encryptedStream, destinationStream);
         }
 
         public static string Decrypt(string encryptedBase64String, EncryptionKey key)
@@ -86,6 +86,14 @@ namespace DotNetCoreCryptographyCore
             await key.EncryptAsync(sourceStream, destinationStream, associatedData: header).ConfigureAwait(false);
         }
 
+        public static async Task<byte[]> AesEncryptWithPasswordAsync(byte[] data, string password)
+        {
+            using var sourceStream = new MemoryStream(data);
+            using var destinationStream = new MemoryStream(data.Length);
+            await AesEncryptWithPasswordAsync(sourceStream, destinationStream, password).ConfigureAwait(false);
+            return destinationStream.ToArray();
+        }
+
         public static void AesEncryptWithPassword(
             Stream sourceStream,
             Stream destinationStream,
@@ -96,14 +104,6 @@ namespace DotNetCoreCryptographyCore
             destinationStream.Write(header, 0, header.Length);
             using var key = DerivePasswordKey(password, salt);
             key.Encrypt(sourceStream, destinationStream, associatedData: header);
-        }
-
-        public static async Task<byte[]> AesEncryptWithPasswordAsync(byte[] data, string password)
-        {
-            using var sourceStream = new MemoryStream(data);
-            using var destinationStream = new MemoryStream(data.Length);
-            await AesEncryptWithPasswordAsync(sourceStream, destinationStream, password).ConfigureAwait(false);
-            return destinationStream.ToArray();
         }
 
         public static byte[] AesEncryptWithPassword(byte[] data, string password)
@@ -136,6 +136,14 @@ namespace DotNetCoreCryptographyCore
             }
         }
 
+        public static async Task<byte[]> AesDecryptWithPasswordAsync(byte[] encryptedData, string password)
+        {
+            using var sourceStream = new MemoryStream(encryptedData);
+            using var destinationStream = new MemoryStream(encryptedData.Length);
+            await AesDecryptWithPasswordAsync(sourceStream, destinationStream, password).ConfigureAwait(false);
+            return destinationStream.ToArray();
+        }
+
         public static void AesDecryptWithPassword(Stream encryptedStream, Stream destinationStream, string password)
         {
             var prefix = new byte[CryptoFormat.MagicLength];
@@ -158,14 +166,6 @@ namespace DotNetCoreCryptographyCore
                 using CryptoStream csDecrypt = new(encryptedStream, decryptor, CryptoStreamMode.Read, leaveOpen: true);
                 csDecrypt.CopyTo(destinationStream);
             }
-        }
-
-        public static async Task<byte[]> AesDecryptWithPasswordAsync(byte[] encryptedData, string password)
-        {
-            using var sourceStream = new MemoryStream(encryptedData);
-            using var destinationStream = new MemoryStream(encryptedData.Length);
-            await AesDecryptWithPasswordAsync(sourceStream, destinationStream, password).ConfigureAwait(false);
-            return destinationStream.ToArray();
         }
 
         public static byte[] AesDecryptWithPassword(byte[] encryptedData, string password)

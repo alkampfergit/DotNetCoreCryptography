@@ -249,14 +249,14 @@ namespace DotNetCoreCryptographyCore.Concrete
 
         private string GetInfoFileName => Path.Combine(_keyMaterialFolderStore, "info.json");
 
-        private class KeysDatabase
+        private sealed class KeysDatabase
         {
             public int ActualKeyNumber { get; set; }
 
             public Dictionary<string, KeyInformation> KeysInformation { get; set; } = new Dictionary<string, KeyInformation>();
         }
 
-        private class KeyInformation
+        private sealed class KeyInformation
         {
             public string Id { get; set; }
 

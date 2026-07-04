@@ -5,7 +5,7 @@ namespace DotNetCoreCryptographyCore.Utils
 {
     internal class CertificateStoreHelpers
     {
-        public X509Certificate2? GetCertificateFromThumbprint(string thumbprint)
+        public static X509Certificate2? GetCertificateFromThumbprint(string thumbprint)
         {
             return GetCertificateFromStore(thumbprint, StoreLocation.LocalMachine) ??
                 GetCertificateFromStore(thumbprint, StoreLocation.CurrentUser);
@@ -13,7 +13,7 @@ namespace DotNetCoreCryptographyCore.Utils
 
         private static X509Certificate2? GetCertificateFromStore(string thumbprint, StoreLocation storeLocation)
         {
-            X509Store store = new X509Store(StoreLocation.LocalMachine);
+            using X509Store store = new X509Store(storeLocation);
             store.Open(OpenFlags.ReadOnly);
 
             X509Certificate2Collection certificates = store.Certificates.Find(
@@ -25,8 +25,6 @@ namespace DotNetCoreCryptographyCore.Utils
             {
                 return certificates[0];
             }
-
-            store.Close();
 
             return null;
         }

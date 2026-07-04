@@ -14,7 +14,7 @@ namespace DotNetCoreCryptographyCore
             using var outputStream = new MemoryStream(stringToEncrypt.Length);
 
             await secureEncryptor.Encrypt(ms, outputStream);
-            return BitConverter.ToString(outputStream.ToArray()).Replace("-", "");
+            return Convert.ToHexString(outputStream.ToArray());
         }
 
         public static async Task<string> DecryptAsync(this SecureEncryptor secureEncryptor, string stringToDecrypt)

@@ -25,7 +25,7 @@ namespace DotNetCoreCryptographyCore
 
             if (_key.KeySize != 256)
             {
-                throw new Exception($"Generated AES key has no 256 bit length but it has {_key.KeySize} bit key");
+                throw new InvalidOperationException($"Generated AES key has no 256 bit length but it has {_key.KeySize} bit key");
             }
         }
 

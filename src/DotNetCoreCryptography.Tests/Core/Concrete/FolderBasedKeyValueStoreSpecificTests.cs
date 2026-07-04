@@ -149,6 +149,8 @@ namespace DotNetCoreCryptography.Tests.Core.Concrete
             {
                 Directory.Delete(_keyMaterialFolder, true);
             }
+
+            GC.SuppressFinalize(this);
         }
     }
 

@@ -32,7 +32,7 @@ namespace DotNetCoreCryptography.Tests.Core
 
         const string someContenttoBeEncrypted = "this test will be encrypted with asymmetric key";
 
-        private Stream GenerateStreamToEncrypt()
+        private static MemoryStream GenerateStreamToEncrypt()
         {
             byte[] stringContent = Encoding.UTF8.GetBytes(someContenttoBeEncrypted);
             return new MemoryStream(stringContent);

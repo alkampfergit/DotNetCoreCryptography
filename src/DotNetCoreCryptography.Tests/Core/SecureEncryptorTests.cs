@@ -31,13 +31,13 @@ namespace DotNetCoreCryptography.Tests.Core
 
         const string someContenttoBeEncrypted = "this test will be encrypted";
 
-        private Stream GenerateStreamToEncrypt()
+        private static MemoryStream GenerateStreamToEncrypt()
         {
             byte[] stringContent = Encoding.UTF8.GetBytes(someContenttoBeEncrypted);
             return new MemoryStream(stringContent);
         }
 
-        private SecureEncryptor CreateSut()
+        private static SecureEncryptor CreateSut()
         {
             //we could use a mock, but it is simpler for now using a know working store.
             //each test gets its own folder so parallel test runs don't race on a shared key file.

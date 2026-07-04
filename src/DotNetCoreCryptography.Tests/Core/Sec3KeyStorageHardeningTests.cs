@@ -149,6 +149,31 @@ namespace DotNetCoreCryptography.Tests.Core
         }
 
         [Fact]
+        public void Loosened_key_directory_is_tightened_on_reopen_on_unix()
+        {
+            if (OperatingSystem.IsWindows())
+            {
+                return;
+            }
+
+            var folder = NewTempFolder();
+            var first = new FolderBasedKeyEncryptor(folder, "a-password");
+            first.GenerateNewKey();
+
+            // Simulate a directory created before this hardening (or by another tool)
+            // with group/world access.
+            File.SetUnixFileMode(
+                folder,
+                UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute |
+                UnixFileMode.GroupRead | UnixFileMode.GroupExecute |
+                UnixFileMode.OtherRead | UnixFileMode.OtherExecute);
+
+            // Reopening the store must detect the loose directory and tighten it.
+            _ = new FolderBasedKeyEncryptor(folder, "a-password");
+            Assert.Equal(UnixFileMode.None, File.GetUnixFileMode(folder) & GroupOrOtherAccess);
+        }
+
+        [Fact]
         public void Folder_store_key_files_are_owner_only_on_unix()
         {
             if (OperatingSystem.IsWindows())

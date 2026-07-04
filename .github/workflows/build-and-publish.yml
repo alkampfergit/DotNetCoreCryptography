@@ -61,7 +61,7 @@ jobs:
         env:
           OS_NAME: ${{ matrix.os }}
         run: |
-          $trx = Get-ChildItem -Path "src/DotNetCoreCryptography.Tests/TestResults" -Filter *.trx -Recurse -ErrorAction SilentlyContinue |
+          $trx = Get-ChildItem -Path "./src/DotNetCoreCryptography.Tests/TestResults" -Filter *.trx -Recurse -ErrorAction SilentlyContinue |
                  Sort-Object LastWriteTime | Select-Object -Last 1
           if (-not $trx) { exit 0 }
           [xml]$doc = Get-Content -Path $trx.FullName

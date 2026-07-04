@@ -11,12 +11,12 @@ param(
 # Helper function to check last execution result
 function Assert-LastExecution {
     param(
-        [string]$message,
+        [string]$Message,
         [bool]$haltExecution = $false
     )
-    
+
     if ($LASTEXITCODE -ne 0) {
-        Write-Error $message
+        Write-Error $Message
         if ($haltExecution) {
             exit $LASTEXITCODE
         }
@@ -31,9 +31,9 @@ $runningDirectory = Split-Path -Parent -Path $MyInvocation.MyCommand.Definition
 
 $nugetTempDir = "$runningDirectory/artifacts/NuGet"
 
-if (Test-Path $nugetTempDir) 
+if (Test-Path $nugetTempDir)
 {
-    Write-host "Cleaning temporary nuget path $nugetTempDir"
+    Write-Host "Cleaning temporary nuget path $nugetTempDir"
     Remove-Item $nugetTempDir -Recurse -Force
 }
 
@@ -68,16 +68,16 @@ if ($true -eq $runPack)
         $assemblyInformationalVersion = "0.7.0-dev"
     }
 
-    Write-host "assemblyInformationalVersion   = $assemblyInformationalVersion"
-    Write-host "assemblyVer                    = $assemblyVer"
-    Write-host "assemblyFileVersion            = $assemblyFileVersion"
-    Write-host "nugetPackageVersion            = $nugetPackageVersion"
+    Write-Host "assemblyInformationalVersion   = $assemblyInformationalVersion"
+    Write-Host "assemblyVer                    = $assemblyVer"
+    Write-Host "assemblyFileVersion            = $assemblyFileVersion"
+    Write-Host "nugetPackageVersion            = $nugetPackageVersion"
 }
 
 # Restore is required by every stage (test and pack alike).
 Write-Host "\n\n*******************RESTORING PACKAGES*******************"
 dotnet restore "$runningDirectory/src/DotNetCoreCryptography.sln"
-Assert-LastExecution -message "Error in restoring packages." -haltExecution $true
+Assert-LastExecution -Message "Error in restoring packages." -haltExecution $true
 
 if ($true -eq $runTests)
 {
@@ -85,23 +85,23 @@ if ($true -eq $runTests)
     # --logger trx emits a machine-readable result file that CI turns into a job
     # summary; the results dir is fixed so the workflow knows where to find it.
     dotnet test "$runningDirectory/src/DotNetCoreCryptography.Tests/DotNetCoreCryptography.Tests.csproj" /p:CollectCoverage=true /p:CoverletOutput=TestResults/ /p:CoverletOutputFormat=lcov --logger "trx;LogFileName=test-results.trx" --results-directory "$runningDirectory/src/DotNetCoreCryptography.Tests/TestResults"
-    Assert-LastExecution -message "Error in test running." -haltExecution $true
+    Assert-LastExecution -Message "Error in test running." -haltExecution $true
 }
 
 if ($true -eq $runPack)
 {
     Write-Host "\n\n*******************BUILDING SOLUTION*******************"
     dotnet build "$runningDirectory/src/DotNetCoreCryptography.sln" --configuration release
-    Assert-LastExecution -message "Error in building in release configuration" -haltExecution $true
+    Assert-LastExecution -Message "Error in building in release configuration" -haltExecution $true
 
     Write-Host "\n\n*******************PUBLISHING SOLUTION*******************"
     dotnet pack "$runningDirectory/src/DotNetCoreCryptographyCore/DotNetCoreCryptographyCore.csproj" --configuration release -o "$runningDirectory/artifacts/NuGet" /p:PackageVersion=$nugetPackageVersion /p:AssemblyVersion=$assemblyVer /p:FileVersion=$assemblyFileVersion /p:InformationalVersion=$assemblyInformationalVersion /p:CI=true
-    Assert-LastExecution -message "Error in creating nuget packages.." -haltExecution $true
+    Assert-LastExecution -Message "Error in creating nuget packages.." -haltExecution $true
 
     if ($true -eq $nugetPublish)
     {
         Write-Host "\n\n*******************PUBLISHING NUGET PACKAGE*******************"
         dotnet nuget push .\artifacts\NuGet\** --source https://api.nuget.org/v3/index.json --api-key $nugetApiKey --skip-duplicate
-        Assert-LastExecution -message "Error pushing nuget packages to nuget.org." -haltExecution $true
+        Assert-LastExecution -Message "Error pushing nuget packages to nuget.org." -haltExecution $true
     }
 }

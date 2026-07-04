@@ -5,12 +5,12 @@ param(
 # Helper function to check last execution result
 function Assert-LastExecution {
     param(
-        [string]$message,
+        [string]$Message,
         [bool]$haltExecution = $false
     )
-    
+
     if ($LASTEXITCODE -ne 0) {
-        Write-Error $message
+        Write-Error $Message
         if ($haltExecution) {
             exit $LASTEXITCODE
         }
@@ -25,9 +25,9 @@ $runningDirectory = Split-Path -Parent -Path $MyInvocation.MyCommand.Definition
 
 $testOutputDir = "$runningDirectory/TestResults"
 
-if (Test-Path $testOutputDir) 
+if (Test-Path $testOutputDir)
 {
-    Write-host "Cleaning temporary Test Output path $testOutputDir"
+    Write-Host "Cleaning temporary Test Output path $testOutputDir"
     Remove-Item $testOutputDir -Recurse -Force
 }
 
@@ -37,7 +37,7 @@ try {
     $gitVersionOutput = dotnet tool run dotnet-gitversion /nofetch /nonormalize /output json 2>&1
     if ($LASTEXITCODE -eq 0) {
         $version = $gitVersionOutput | ConvertFrom-Json
-        $assemblyVer = $version.AssemblySemVer 
+        $assemblyVer = $version.AssemblySemVer
         Write-Host "GitVersion executed successfully, version: $assemblyVer"
     } else {
         Write-Warning "GitVersion failed with exit code $LASTEXITCODE. Output: $gitVersionOutput"
@@ -94,7 +94,7 @@ else {
 
 Write-Host "Restoring dotnet tools..."
 dotnet tool restore
-Assert-LastExecution -message "Error restoring dotnet tools." -haltExecution $true
+Assert-LastExecution -Message "Error restoring dotnet tools." -haltExecution $true
 
 Write-Host "Starting SonarCloud analysis..."
 # Array form so the mutually-exclusive scope args (branch vs pull request) can be
@@ -112,22 +112,22 @@ $beginArgs = @(
     "/d:sonar.coverage.exclusions=**Test*.cs"
 ) + $sonarScopeArgs
 dotnet tool run dotnet-sonarscanner $beginArgs
-Assert-LastExecution -message "Error starting SonarCloud analysis. Please check your SONAR_TOKEN and network connectivity." -haltExecution $true
+Assert-LastExecution -Message "Error starting SonarCloud analysis. Please check your SONAR_TOKEN and network connectivity." -haltExecution $true
 
 Write-Host "Restoring packages..."
 dotnet restore src
-Assert-LastExecution -message "Error restoring packages." -haltExecution $true
+Assert-LastExecution -Message "Error restoring packages." -haltExecution $true
 
 Write-Host "Building solution..."
 dotnet build src --configuration release
-Assert-LastExecution -message "Error building solution." -haltExecution $true
+Assert-LastExecution -Message "Error building solution." -haltExecution $true
 
 Write-Host "Running tests with coverage..."
 dotnet test "./src/DotNetCoreCryptography.Tests/DotNetCoreCryptography.Tests.csproj" --collect:"XPlat Code Coverage" --results-directory TestResults/ --logger "trx;LogFileName=unittests.trx" --no-build --no-restore --configuration release -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=opencover
-Assert-LastExecution -message "Error running tests." -haltExecution $true
+Assert-LastExecution -Message "Error running tests." -haltExecution $true
 
 Write-Host "Completing SonarCloud analysis..."
 dotnet tool run dotnet-sonarscanner end /d:sonar.login="$sonarSecret"
-Assert-LastExecution -message "Error completing SonarCloud analysis." -haltExecution $true
+Assert-LastExecution -Message "Error completing SonarCloud analysis." -haltExecution $true
 
 Write-Host "SonarCloud analysis completed successfully."

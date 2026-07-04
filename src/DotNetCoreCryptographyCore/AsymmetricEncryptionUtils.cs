@@ -10,6 +10,7 @@ namespace DotNetCoreCryptographyCore
         private const int Rsa4096ModulusBytes = 512;
         private const int Rsa4096PrimeBytes = 256;
         private const int MaxRsaExponentBytes = 8;
+        private const string InvalidSerializedRsaKeyMessage = "Serialized RSA key is invalid";
 
         public static bool KeyEqual(this RSAParameters p1, RSAParameters p2) 
         {
@@ -74,7 +75,7 @@ namespace DotNetCoreCryptographyCore
         {
             if (serializedRsaKey is null || serializedRsaKey.Length < 2)
             {
-                throw new CryptographicException("Serialized RSA key is invalid");
+                throw new CryptographicException(InvalidSerializedRsaKeyMessage);
             }
 
             if (serializedRsaKey[0] != (byte)AsymmetricKeyType.Rsa4096)
@@ -111,7 +112,7 @@ namespace DotNetCoreCryptographyCore
             }
             catch (Exception ex) when (ex is EndOfStreamException || ex is IOException || ex is ArgumentException)
             {
-                throw new CryptographicException("Serialized RSA key is invalid", ex);
+                throw new CryptographicException(InvalidSerializedRsaKeyMessage, ex);
             }
         }
 
@@ -120,13 +121,13 @@ namespace DotNetCoreCryptographyCore
             var length = br.ReadInt32();
             if (length <= 0 || length > maxLength || length > br.BaseStream.Length - br.BaseStream.Position)
             {
-                throw new CryptographicException("Serialized RSA key is invalid");
+                throw new CryptographicException(InvalidSerializedRsaKeyMessage);
             }
 
             var value = br.ReadBytes(length);
             if (value.Length != length)
             {
-                throw new CryptographicException("Serialized RSA key is invalid");
+                throw new CryptographicException(InvalidSerializedRsaKeyMessage);
             }
 
             return value;

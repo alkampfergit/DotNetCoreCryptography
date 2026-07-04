@@ -56,5 +56,47 @@ namespace DotNetCoreCryptography.Tests.Core
 
             Assert.Throws<CryptographicException>(() => serialized.DeserializeToRsa(out var _));
         }
+
+        [Fact]
+        public void DeserializeToRsaRejectsDowngradedKeySize()
+        {
+            //a blob carrying a 2048-bit key but tagged Rsa4096 is a strength downgrade
+            //and must be rejected on deserialize (SEC-5)
+            using var rsa = RSA.Create(2048);
+            var serialized = SerializeAsRsa4096(rsa.ExportParameters(true));
+
+            Assert.Throws<CryptographicException>(() => serialized.DeserializeToRsa(out var _));
+        }
+
+        //mirrors AsymmetricEncryptionUtils.Serialize wire format but stamps the
+        //Rsa4096 tag regardless of key size, so we can forge a downgraded blob that
+        //the production Serialize would refuse to write.
+        private static byte[] SerializeAsRsa4096(RSAParameters pp)
+        {
+            using var ms = new System.IO.MemoryStream();
+            using var bw = new System.IO.BinaryWriter(ms);
+
+            bw.Write((byte)AsymmetricKeyType.Rsa4096);
+            bw.Write(true);
+
+            bw.Write(pp.Exponent.Length);
+            bw.Write(pp.Exponent);
+            bw.Write(pp.Modulus.Length);
+            bw.Write(pp.Modulus);
+            bw.Write(pp.D.Length);
+            bw.Write(pp.D);
+            bw.Write(pp.DP.Length);
+            bw.Write(pp.DP);
+            bw.Write(pp.DQ.Length);
+            bw.Write(pp.DQ);
+            bw.Write(pp.P.Length);
+            bw.Write(pp.P);
+            bw.Write(pp.Q.Length);
+            bw.Write(pp.Q);
+            bw.Write(pp.InverseQ.Length);
+            bw.Write(pp.InverseQ);
+            bw.Flush();
+            return ms.ToArray();
+        }
     }
 }

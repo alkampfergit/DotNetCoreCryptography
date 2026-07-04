@@ -104,7 +104,16 @@ namespace DotNetCoreCryptographyCore
                     pp.Q = ReadBoundedBytes(br, Rsa4096PrimeBytes);
                     pp.InverseQ = ReadBoundedBytes(br, Rsa4096PrimeBytes);
                 }
-                return RSA.Create(pp);
+
+                var rsa = RSA.Create(pp);
+                // Reject a strength downgrade: a blob carrying a short modulus would
+                // otherwise yield a weak key still advertised as Rsa4096 (SEC-5).
+                if (rsa.KeySize != 4096)
+                {
+                    rsa.Dispose();
+                    throw new CryptographicException("Deserialized RSA key is not 4096 bits");
+                }
+                return rsa;
             }
             catch (CryptographicException)
             {

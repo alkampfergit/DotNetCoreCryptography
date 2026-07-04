@@ -6,8 +6,9 @@
 | **Severity** | Medium |
 | **CWE** | [CWE-20](https://cwe.mitre.org/data/definitions/20.html) (Improper Input Validation), [CWE-757](https://cwe.mitre.org/data/definitions/757.html) (Selection of Less-Secure Algorithm During Negotiation / 'Algorithm Downgrade'), [CWE-327](https://cwe.mitre.org/data/definitions/327.html) (Use of a Broken or Risky Cryptographic Algorithm) |
 | **Component** | `EncryptionUtils` (AES key blob), `AsymmetricEncryptionUtils` (RSA key blob) |
-| **Status** | Open |
+| **Status** | Fixed |
 | **Analysis date** | 2026-07-03 |
+| **Fixed date** | 2026-07-04 |
 | **Commit** | `9b0f088` |
 
 Parent report: [`../2026-07-03-security-review.md`](../2026-07-03-security-review.md).
@@ -146,6 +147,20 @@ hand-rolled RSA format with `RSA.ImportSubjectPublicKeyInfo` / `ImportPkcs8Priva
 - A blob with mode byte `= 2` (ECB) must throw on deserialize.
 - A blob with a 16-byte key segment must throw (not silently yield a 128-bit key).
 - An RSA blob encoding a <4096-bit modulus must throw.
+
+## Resolution (2026-07-04)
+
+- **AES** (`EncryptionUtils.cs`): `Serialize` now enforces `KeySize == 256` and
+  `Mode == CBC`; `DeserializeToAes` rejects null/empty input, enforces the exact blob
+  length, rejects any non-CBC mode byte, and reads a fixed 32-byte key. Tests assert ECB
+  is rejected on both serialize and a tampered mode byte, plus a truncated-key rejection.
+- **RSA** (`AsymmetricEncryptionUtils.cs`): component lengths are bounds-checked on read
+  (also closing SEC-4), and `DeserializeToRsa` now verifies `rsa.KeySize == 4096` after
+  `RSA.Create`, disposing and throwing `CryptographicException` on a strength downgrade.
+  A new test (`DeserializeToRsaRejectsDowngradedKeySize`) forges a 2048-bit blob tagged
+  `Rsa4096` and asserts it is rejected.
+
+All verification items below are covered by the test suite (101 passing).
 
 ## References
 

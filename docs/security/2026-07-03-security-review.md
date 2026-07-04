@@ -56,6 +56,11 @@ and verified (see [Remediated during this engagement](#remediated-during-this-en
 > allocation, and RSA key deserialization now rejects negative, zero, oversized, and truncated
 > component lengths with `CryptographicException`. See
 > [`details/SEC-4-…#resolution`](details/SEC-4-unbounded-allocation.md#resolution).
+>
+> **Update (2026-07-04):** SEC-5 is fully fixed. The AES parser already enforced a CBC-only
+> whitelist and exact blob length; `DeserializeToRsa` now verifies `rsa.KeySize == 4096` after
+> `RSA.Create`, rejecting a strength-downgraded key blob (e.g. a 2048-bit modulus tagged
+> `Rsa4096`). See [`details/SEC-5-…#resolution`](details/SEC-5-key-deserialization-validation.md#resolution).
 
 ## Findings summary
 
@@ -71,7 +76,7 @@ tests) under [`details/`](details/README.md): SEC-1..SEC-9 →
 | [SEC-2](#sec-2--weak-password-based-key-derivation-high) | High | CWE-916, CWE-326 | Weak KDF: PBKDF2-HMAC-SHA1 at 1000 iterations protecting keys at rest | ✅ Fixed for new (v2) data — PBKDF2-SHA256 · 600k; pre-existing files stay weak until re-encrypted |
 | [SEC-3](#sec-3--insecure-key-storage-at-rest-high) | High | CWE-312, CWE-276 | Keys stored in cleartext with default/world-readable permissions; TOCTOU creation race | ✅ Remediated — 0600/0700 perms, atomic CreateNew, DPAPI on Windows, opt-in for cleartext |
 | [SEC-4](#sec-4--unbounded-allocation-from-untrusted-length-medium) | Medium | CWE-789, CWE-400 | Attacker-controlled 32-bit length drives multi-GB pre-allocation (DoS) | ✅ Fixed |
-| [SEC-5](#sec-5--missing-validation-on-key-deserialization-medium) | Medium | CWE-20, CWE-757, CWE-327 | Key deserialization accepts arbitrary cipher mode (incl. ECB), does not enforce key sizes → algorithm/size downgrade | Partially fixed (AES: CBC-only whitelist + exact length; RSA validation still open) |
+| [SEC-5](#sec-5--missing-validation-on-key-deserialization-medium) | Medium | CWE-20, CWE-757, CWE-327 | Key deserialization accepts arbitrary cipher mode (incl. ECB), does not enforce key sizes → algorithm/size downgrade | ✅ Fixed |
 | [SEC-6](#sec-6--partial-read-of-iv--salt-medium) | Medium | CWE-241 | Partial `Stream.Read` of IV/salt yields zero-filled key material / silent corruption | ✅ Fixed |
 | [SEC-7](#sec-7--non-constant-time-comparison-of-secrets-low) | Low | CWE-208 | Non-constant-time comparison of secret key material | Open (defense-in-depth) |
 | [SEC-8](#sec-8--key-material-not-zeroized-low) | Low | CWE-316 | Key material not zeroized; lingers on the managed heap | Open (defense-in-depth) |
@@ -233,7 +238,7 @@ for the RSA and envelope paths.
 
 ---
 
-### SEC-5 — Missing validation on key deserialization (Medium)
+### SEC-5 — Missing validation on key deserialization (Medium) — ✅ Fixed
 
 **CWE-20** (Improper Input Validation), **CWE-757** (Selection of Less-Secure Algorithm
 During Negotiation), **CWE-327** (Use of a Broken or Risky Cryptographic Algorithm).
@@ -260,8 +265,18 @@ detection.
 **Remediation**
 Validate the exact expected length (50 bytes for Aes256), require a 32-byte key for the
 `Aes256` marker, restrict the mode to CBC/GCM (or drop the mode byte and fix it per format
-version), and verify `Modulus.Length == 512` before `RSA.Create(pp)`. Remove the ECB test
+version), and verify the RSA key strength before returning. Remove the ECB test
 assertion (or invert it to assert ECB is rejected).
+
+**Resolution**
+Fixed on 2026-07-04. AES: `Serialize` enforces `KeySize == 256` and `Mode == CBC`;
+`DeserializeToAes` rejects null/empty input, enforces the exact 50-byte blob length, rejects
+any non-CBC mode byte, and reads a fixed 32-byte key. RSA: `DeserializeToRsa` now checks
+`rsa.KeySize == 4096` after `RSA.Create` and throws `CryptographicException` on a downgrade,
+so a short-modulus blob tagged `Rsa4096` (e.g. a 2048-bit key) is rejected. The ECB test was
+inverted to assert rejection, and tests cover the tampered-mode byte, truncated AES key, and
+the downgraded RSA key size. See
+[`details/SEC-5-…#resolution`](details/SEC-5-key-deserialization-validation.md#resolution).
 
 ---
 
@@ -391,9 +406,9 @@ Refuted during adversarial verification; recorded to prevent re-raising:
    (RFC 5649) key wrapping, PBKDF2-SHA256 · 600k (parameters implied by the format-version
    byte), v1 kept read-only for migration. **Still to do from this item:** owner-only file
    permissions (SEC-3).
-2. **Input-validation hardening** (SEC-4, SEC-5) — SEC-4 is fixed; SEC-5 is partially done
-   (AES cipher mode whitelisted to CBC, exact serialized key lengths enforced). Remaining:
-   RSA semantic validation, including modulus-size validation.
+2. **Input-validation hardening** (SEC-4, SEC-5) — ✅ **Done.** SEC-4 (bounded allocation)
+   and SEC-5 (AES cipher-mode whitelist + exact lengths, RSA post-create key-size validation)
+   are both fixed.
 3. **Defense-in-depth** (SEC-7, SEC-8, SEC-9) — `FixedTimeEquals`, `ZeroMemory`, and
    `CryptographicException`-typed failures that do not leak storage paths. (The new
    `AesGcmEncryptionKey` already uses `FixedTimeEquals`, zeroizes its key on dispose, and

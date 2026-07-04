@@ -159,15 +159,17 @@ mergeable, and has terminal successful checks:
 gh pr view <PR_NUMBER> --repo <OWNER/REPO> --json state,mergeable,mergeStateStatus,statusCheckRollup
 ```
 
-For a rebase merge, use:
+Squash merge is the preferred method for this repo: it collapses the PR's commits into a single
+commit on the base branch, keeping `develop`/`master` history linear and one-commit-per-PR.
 
 ```
-gh pr merge <PR_NUMBER> --repo <OWNER/REPO> --rebase --delete-branch
+gh pr merge <PR_NUMBER> --repo <OWNER/REPO> --squash --delete-branch
 ```
 
-`--rebase` tells GitHub to replay the PR commits onto the base branch. `--delete-branch` deletes the
-remote head branch after the merge. If required checks are still queued or running, wait rather than
-forcing the merge unless the caller explicitly tells you to override repository policy.
+`--squash` tells GitHub to squash the PR commits into one and apply it onto the base branch.
+`--delete-branch` deletes the remote head branch after the merge. If required checks are still queued
+or running, wait rather than forcing the merge unless the caller explicitly tells you to override
+repository policy.
 
 After the PR is merged, reconcile the local clone:
 
@@ -175,10 +177,13 @@ After the PR is merged, reconcile the local clone:
 git switch <base>
 git pull --ff-only origin <base>
 git fetch --prune
-git branch -d <head-branch>
+git branch -D <head-branch>
 ```
 
-Use `git branch -d`, not `-D`, so Git refuses to delete a local branch whose commits are not merged.
+A squash merge creates a new commit with a different SHA than the branch tip, so Git does not see the
+head branch as merged; use `git branch -D` (capital) to delete it once you have confirmed the PR shows
+as merged. (For a fast-forward or rebase merge, prefer `git branch -d`, which refuses to delete a
+branch whose commits are not merged.)
 If local uncommitted or untracked files exist, preserve them and report them; do not discard them as
 part of PR cleanup.
 

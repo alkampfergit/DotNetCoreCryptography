@@ -52,6 +52,11 @@ namespace DotNetCoreCryptography.Azure
                 // Versioned blob: [magic][ushort keyIdLength][UTF-8 key id][RSA ciphertext].
                 // Decrypt with the exact key version recorded at encryption time.
                 var keyId = ParseVersionedBlob(encryptedKey, out ciphertext);
+                // The key id comes from the (unauthenticated) blob, so restrict it to
+                // the configured vault and key name: a tampered blob must not be able
+                // to redirect decryption to an arbitrary vault/key URI. Only the
+                // version segment may vary (that is the whole point of the versioning).
+                EnsureKeyUriMatchesConfiguration(keyId);
                 cryptoClient = new CryptographyClient(keyId, new DefaultAzureCredential());
             }
             else
@@ -102,6 +107,35 @@ namespace DotNetCoreCryptography.Azure
             }
 
             return BuildVersionedBlob(keyId.AbsoluteUri, result.Ciphertext);
+        }
+
+        /// <summary>
+        /// Verifies that a key URI taken from a wrapped-key blob points at the vault
+        /// and key this encryptor is configured for. Scheme, host and port must match
+        /// the configured vault and the path must be <c>/keys/{configuredKeyName}[/{version}]</c>;
+        /// only the version may differ. Fails closed with <see cref="CryptographicException"/>.
+        /// </summary>
+        internal void EnsureKeyUriMatchesConfiguration(Uri keyId)
+        {
+            var vault = _keyClient.VaultUri;
+            bool sameVault =
+                string.Equals(keyId.Scheme, vault.Scheme, StringComparison.OrdinalIgnoreCase)
+                && string.Equals(keyId.Host, vault.Host, StringComparison.OrdinalIgnoreCase)
+                && keyId.Port == vault.Port;
+
+            // AbsolutePath is "/keys/{name}" or "/keys/{name}/{version}".
+            var segments = keyId.AbsolutePath.Split('/', StringSplitOptions.RemoveEmptyEntries);
+            bool sameKey =
+                segments.Length >= 2
+                && segments.Length <= 3
+                && string.Equals(segments[0], "keys", StringComparison.OrdinalIgnoreCase)
+                && string.Equals(segments[1], _actualKeyName, StringComparison.Ordinal);
+
+            if (!sameVault || !sameKey)
+            {
+                throw new CryptographicException(
+                    "Wrapped key references a Key Vault key that does not match the configured vault/key.");
+            }
         }
 
         private static bool StartsWithMagic(byte[] data)

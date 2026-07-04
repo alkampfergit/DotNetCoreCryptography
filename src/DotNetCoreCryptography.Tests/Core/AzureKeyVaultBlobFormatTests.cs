@@ -1,4 +1,5 @@
 using DotNetCoreCryptography.Azure;
+using System;
 using System.Security.Cryptography;
 using System.Text;
 using Xunit;
@@ -62,6 +63,33 @@ namespace DotNetCoreCryptography.Tests.Core
             var blob = AzureKeyVaultStoreKeyEncryptor.BuildVersionedBlob("keys/test/relative", new byte[] { 1, 2, 3 });
             Assert.Throws<CryptographicException>(
                 () => AzureKeyVaultStoreKeyEncryptor.ParseVersionedBlob(blob, out _));
+        }
+
+        private const string Vault = "https://test-kv-alk.vault.azure.net/";
+        private const string KeyName = "test";
+
+        private static AzureKeyVaultStoreKeyEncryptor NewSut() =>
+            new AzureKeyVaultStoreKeyEncryptor(Vault, KeyName);
+
+        [Theory]
+        // Only the version segment may vary; a versionless URI is also accepted.
+        [InlineData("https://test-kv-alk.vault.azure.net/keys/test/0123456789abcdef0123456789abcdef")]
+        [InlineData("https://test-kv-alk.vault.azure.net/keys/test")]
+        public void Key_uri_matching_configured_vault_and_key_is_accepted(string keyId)
+        {
+            NewSut().EnsureKeyUriMatchesConfiguration(new Uri(keyId));
+        }
+
+        [Theory]
+        [InlineData("https://evil.vault.azure.net/keys/test/v1")]              // different vault host
+        [InlineData("http://test-kv-alk.vault.azure.net/keys/test/v1")]        // downgraded scheme
+        [InlineData("https://test-kv-alk.vault.azure.net/keys/other/v1")]      // different key name
+        [InlineData("https://test-kv-alk.vault.azure.net/secrets/test/v1")]    // different object type
+        [InlineData("https://test-kv-alk.vault.azure.net/keys/test/v1/extra")] // extra path segment
+        public void Key_uri_pointing_elsewhere_is_rejected(string keyId)
+        {
+            Assert.Throws<CryptographicException>(
+                () => NewSut().EnsureKeyUriMatchesConfiguration(new Uri(keyId)));
         }
     }
 }
